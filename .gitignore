@@ -1,0 +1,66 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.d
+
+# CUDA specific
+*.cubin
+*.ptx
+*.fatbin
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+*.cmake
+!CMakeLists.txt
+
+# Dependencies
+deps/
+external/
+third_party/
+
+# Test coverage
+coverage/
+*.gcno
+*.gcda
+*.gcov
+
+# Documentation
+docs/_build/
+docs/api/
+
+# Logs
+*.log
+logs/
+
+# OS specific
+.DS_Store
+Thumbs.db
