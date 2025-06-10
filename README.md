@@ -6,11 +6,17 @@ An educational C++ and CUDA implementation of zero-knowledge cryptography primit
 
 **This implementation is for educational purposes only and should not be used in production environments.**
 
-⚠️ For example, the MDS matrix and round constants generation must be replaced with secure, spec-compliant algorithms if this is meant for cryptographic purposes.
+For example, the MDS matrix and round constants generation must be replaced with secure, spec-compliant algorithms if this is meant for cryptographic purposes.
 
 ## ⚠️ Disclaimer
 
 **The author does not guarantee the correctness of any implemented algorithms.** This code is provided as-is for educational and research purposes. If you discover any errors, inconsistencies, you can report them by opening an issue on the project repository.
+
+## 🚀 Performance Highlights
+
+**GPU acceleration delivers game-changing performance:**
+- **Merkle Tree Building**: Up to **45.78x faster** on GPU (50K elements in 282ms vs 12.9s on CPU)
+- **Batch Proof Verification**: Up to **87.26x speedup** (5K proofs in 14.8ms vs 1.52s on CPU)
 
 ## Projects
 
@@ -218,6 +224,35 @@ make lint
 ### CUDA Acceleration
 - **Batch Processing**: Optimized for processing thousands of elements simultaneously
 - **Kernel Optimization**: Custom CUDA kernels for field arithmetic and hashing operations
+
+Example benchmark:
+```bash
+====================================================================================================
+  CUDA SCALABILITY ANALYSIS
+====================================================================================================
+Dataset Size | Build Time (ms) | Trees/sec | Speedup vs CPU
+-----------------------------------------------------------------
+         100 |           77.51 |       129 |          0.55x
+         500 |          106.28 |        94 |          1.66x
+        1000 |          110.72 |        90 |          2.02x
+        5000 |          194.30 |        51 |         12.81x
+       10000 |          200.09 |        49 |         14.89x
+       50000 |          282.57 |        35 |         45.78x
+====================================================================================================
+
+====================================================================================================
+  BATCH PROOF PERFORMANCE: CPU vs GPU
+====================================================================================================
+Batch Size | CPU Proof Gen (ms) | GPU Proof Gen (ms) | CPU Verify (ms) | GPU Verify (ms) | Speedup
+----------------------------------------------------------------------------------------------------
+        10 |               0.01 |               0.01 |            3.11 |            3.00 |    1.04x
+        50 |               0.04 |               0.03 |           15.08 |            8.06 |    1.87x
+       100 |               0.09 |               0.05 |           30.34 |            8.17 |    3.70x
+       500 |               0.41 |               0.25 |          151.62 |           11.60 |   12.82x
+      1000 |               0.82 |               0.50 |          303.94 |           12.05 |   24.29x
+      5000 |               4.15 |               2.62 |         1519.26 |           14.84 |   87.26x
+====================================================================================================
+```
 
 ## Performance Benchmarks
 
