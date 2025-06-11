@@ -34,6 +34,11 @@ help:
 	@echo "  $(GREEN)test-cuda$(NC)     - Run CUDA-specific tests (shows setup info if CUDA unavailable)"
 	@echo "  $(GREEN)benchmark$(NC)     - Run benchmark tests with performance output"
 	@echo ""
+	@echo "$(YELLOW)Freivald's Algorithm (Matrix Verification):$(NC)"
+	@echo "  $(GREEN)freivald-tests$(NC)      - Build and run Freivald's algorithm tests"
+	@echo "  $(GREEN)freivald-example$(NC)    - Build and run Freivald's algorithm example"
+	@echo "  $(GREEN)freivald-benchmark$(NC)  - Build and run Freivald's algorithm benchmark"
+	@echo ""
 	@echo "$(YELLOW)Debug targets:$(NC)"
 	@echo "  $(GREEN)debug$(NC)         - Build with debug information"
 	@echo ""
@@ -127,4 +132,30 @@ lint:
 	else \
 		echo "$(YELLOW)cppcheck not found, skipping linting$(NC)"; \
 	fi
+
+# Freivald's Algorithm targets
+.PHONY: freivald-tests
+freivald-tests: configure
+	@echo "$(BLUE)Building and running Freivald's algorithm tests...$(NC)"
+	@cd $(BUILD_DIR) && $(MAKE) freivald_tests
+	@echo "$(BLUE)Running Freivald's algorithm tests...$(NC)"
+	@cd $(BUILD_DIR) && ./src/freivald/freivald_tests
+	@echo "$(GREEN)Freivald's algorithm tests completed!$(NC)"
+
+.PHONY: freivald-example
+freivald-example: configure
+	@echo "$(BLUE)Building and running Freivald's algorithm example...$(NC)"
+	@cd $(BUILD_DIR) && $(MAKE) freivald_example
+	@echo "$(BLUE)Running Freivald's algorithm example...$(NC)"
+	@cd $(BUILD_DIR) && ./src/freivald/freivald_example
+	@echo "$(GREEN)Freivald's algorithm example completed!$(NC)"
+
+.PHONY: freivald-benchmark
+freivald-benchmark: configure
+	@echo "$(BLUE)Building and running Freivald's algorithm benchmark...$(NC)"
+	@cd $(BUILD_DIR) && $(MAKE) freivald_benchmark
+	@echo "$(BLUE)Running Freivald's algorithm benchmark...$(NC)"
+	@cd $(BUILD_DIR) && ./src/freivald/freivald_benchmark
+	@echo "$(GREEN)Freivald's algorithm benchmark completed!$(NC)"
+
 

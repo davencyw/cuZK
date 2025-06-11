@@ -18,6 +18,11 @@ For example, the MDS matrix and round constants generation must be replaced with
 - **Merkle Tree Building**: Up to **45.78x faster** on GPU (50K elements in 282ms vs 12.9s on CPU)
 - **Batch Proof Verification**: Up to **87.26x speedup** (5K proofs in 14.8ms vs 1.52s on CPU)
 
+**Freivald's algorithm shows significant algorithmic advantages:**
+- **Matrix Verification**: Up to **76x faster** than recomputation (1000×1000 matrices: 8.6ms vs 651ms)
+- **Scalable Verification**: O(n²) complexity vs O(n³) for traditional verification
+- **High Confidence**: Configurable error probability (e.g., ≤ 0.1% with 10 repetitions)
+
 ## Projects
 
 ### Poseidon Hash
@@ -36,6 +41,15 @@ For example, the MDS matrix and round constants generation must be replaced with
 - **CUDA-accelerated tree building and batch proof verification**
 - Comprehensive test suite with performance benchmarks for different arities
 - Optimized bottom-up tree construction for consistent structure
+
+### Freivald's Algorithm (Matrix Multiplication Verification)
+- Implementation of Freivald's algorithm for efficient matrix multiplication verification
+- Probabilistic verification with configurable error bounds
+- O(n²) time complexity vs O(n³) for recomputation
+- Fully templated design supporting integer and floating-point types
+- Comprehensive test suite with 25 test cases
+- Performance benchmarks showing 6-76x speedup for practical matrix sizes
+- Modular architecture with separate matrix generator, prover, and verifier components
 
 ## Quick Start
 
@@ -68,8 +82,21 @@ make test-verbose
 # Run CUDA tests (if CUDA is available)
 make test-cuda
 
-# Run benchmark tests
+# Run benchmark tests (includes merkle tree benchmarks)
 make benchmark
+```
+
+### Freivald's Algorithm
+
+```bash
+# Run Freivald's algorithm tests
+make freivald-tests
+
+# Run Freivald's algorithm examples
+make freivald-example  
+
+# Run Freivald's algorithm performance benchmark
+make freivald-benchmark
 ```
 
 ## Usage Examples
@@ -176,6 +203,52 @@ int main() {
     
     // Cleanup
     CudaNaryMerkleTree::cleanup_cuda();
+    return 0;
+}
+```
+
+### Freivald's Algorithm (Matrix Multiplication Verification)
+
+```cpp
+#include "matrix_generator.h"
+#include "prover.h"
+#include "verifier.h"
+using namespace freivald;
+
+int main() {
+    // Generate random matrices for testing
+    MatrixGenerator<int> generator;
+    
+    auto A = generator.generateMatrix(100, 80, 42);  // 100x80 matrix, seed=42
+    auto B = generator.generateMatrix(80, 120, 43);  // 80x120 matrix, seed=43
+    
+    // Prover computes matrix multiplication A × B = C
+    Prover<int> prover;
+    auto C = prover.computeAB(A, B);
+    
+    std::cout << "Computed matrix multiplication: " 
+              << A.rows() << "×" << A.cols() << " × " 
+              << B.rows() << "×" << B.cols() << " = " 
+              << C.rows() << "×" << C.cols() << std::endl;
+    
+    // Verifier checks if A × B = C using Freivald's algorithm
+    Verifier<int> verifier;
+    
+    // Verify with 10 repetitions for high confidence (error probability ≤ (1/2)^10)
+    bool is_correct = verifier.verify(A, B, C, prover, 10);
+    
+    std::cout << "Verification result: " << (is_correct ? "CORRECT" : "INCORRECT") << std::endl;
+    std::cout << "Error probability: ≤ " << verifier.getErrorProbability(10) << std::endl;
+    
+    // Demonstrate incorrect multiplication detection
+    auto C_wrong = C;
+    if (C_wrong.rows() > 0 && C_wrong.cols() > 0) {
+        C_wrong(0, 0) += 1;  // Introduce error
+    }
+    
+    bool is_wrong_detected = !verifier.verify(A, B, C_wrong, prover, 10);
+    std::cout << "Error detection works: " << (is_wrong_detected ? "YES" : "NO") << std::endl;
+    
     return 0;
 }
 ```
