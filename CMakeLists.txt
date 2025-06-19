@@ -48,12 +48,13 @@ enable_testing()
 # Include sub-projects
 add_subdirectory(src/poseidon)
 add_subdirectory(src/merkle_tree)
+add_subdirectory(src/mv_polynomial)
 
 # Add common include directory for all targets
 include_directories(src/common)
 
 # Collect all test targets
-set(ALL_CPU_TEST_TARGETS poseidon_tests merkle_tree_tests)
+set(ALL_CPU_TEST_TARGETS poseidon_tests merkle_tree_tests test_mv_polynomial)
 set(ALL_TEST_TARGETS ${ALL_CPU_TEST_TARGETS})
 
 # Add CUDA tests if available
@@ -70,7 +71,7 @@ add_custom_target(run_all_tests
 
 # Create target to run just CPU tests
 add_custom_target(run_cpu_tests
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "(poseidon_tests|merkle_tree_tests)"
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "(poseidon_tests|merkle_tree_tests|mv_polynomial_test)"
     DEPENDS ${ALL_CPU_TEST_TARGETS}
     COMMENT "Running all CPU tests"
 )

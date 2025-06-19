@@ -176,9 +176,10 @@ namespace FieldArithmetic {
 void add(const FieldElement& a, const FieldElement& b, FieldElement& result) {
   uint64_t carry = 0;
   for (int i = 0; i < 4; ++i) {
-    uint64_t sum = a.limbs[i] + b.limbs[i] + carry;
-    result.limbs[i] = sum;
-    carry = (sum < a.limbs[i]) ? 1 : 0;
+    // Use 128-bit arithmetic to avoid overflow issues
+    __uint128_t sum = (__uint128_t)a.limbs[i] + (__uint128_t)b.limbs[i] + (__uint128_t)carry;
+    result.limbs[i] = (uint64_t)sum;
+    carry = (uint64_t)(sum >> 64);  // Extract the high 64 bits as carry
   }
   reduce(result);
 }
@@ -186,8 +187,14 @@ void add(const FieldElement& a, const FieldElement& b, FieldElement& result) {
 void subtract(const FieldElement& a, const FieldElement& b, FieldElement& result) {
   // If a < b, we need to add the modulus first
   if (a < b) {
-    FieldElement temp = a;
-    add(temp, FieldConstants::MODULUS, temp);
+    FieldElement temp;
+    // Add modulus to a without calling reduce()
+    uint64_t carry = 0;
+    for (int i = 0; i < 4; ++i) {
+      __uint128_t sum = (__uint128_t)a.limbs[i] + (__uint128_t)FieldConstants::MODULUS.limbs[i] + (__uint128_t)carry;
+      temp.limbs[i] = (uint64_t)sum;
+      carry = (uint64_t)(sum >> 64);
+    }
     subtract_internal(temp, b, result);
   } else {
     subtract_internal(a, b, result);

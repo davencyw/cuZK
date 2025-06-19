@@ -292,6 +292,75 @@ TEST_F(FieldArithmeticTest, LargeNumberArithmetic) {
   EXPECT_TRUE(product < FieldConstants::MODULUS);
 }
 
+TEST_F(FieldArithmeticTest, FieldIdentityProperties) {
+  // Test the specific case ZERO + ONE - ONE != ZERO
+  FieldElement zero = FieldConstants::ZERO;
+  FieldElement one = FieldConstants::ONE;
+  
+  // Test ZERO + ONE - ONE should equal ZERO
+  FieldElement step1 = zero + one;
+  EXPECT_EQ(step1, one) << "ZERO + ONE should equal ONE";
+  
+  FieldElement result = step1 - one;
+  EXPECT_EQ(result, zero) << "ZERO + ONE - ONE should equal ZERO";
+  
+  // Alternative: directly test (ZERO + ONE) - ONE
+  FieldElement direct_result = (zero + one) - one;
+  EXPECT_EQ(direct_result, zero) << "(ZERO + ONE) - ONE should equal ZERO";
+  
+  // Test other identity properties
+  EXPECT_EQ(one - one, zero) << "ONE - ONE should equal ZERO";
+  EXPECT_EQ(zero + zero, zero) << "ZERO + ZERO should equal ZERO";
+  EXPECT_EQ(zero - zero, zero) << "ZERO - ZERO should equal ZERO";
+  
+  // Test associativity of addition: (a + b) + c = a + (b + c)
+  FieldElement a(5), b(3), c(7);
+  FieldElement left = (a + b) + c;
+  FieldElement right = a + (b + c);
+  EXPECT_EQ(left, right) << "Addition should be associative";
+  
+  // Test subtraction properties: a - b + b = a
+  FieldElement diff = a - b;
+  FieldElement restored = diff + b;
+  EXPECT_EQ(restored, a) << "a - b + b should equal a";
+  
+  // Test with constants: TWO - ONE should equal ONE
+  FieldElement two = FieldConstants::TWO;
+  FieldElement two_minus_one = two - one;
+  EXPECT_EQ(two_minus_one, one) << "TWO - ONE should equal ONE";
+  
+  // Test: ONE + ONE should equal TWO
+  FieldElement one_plus_one = one + one;
+  EXPECT_EQ(one_plus_one, two) << "ONE + ONE should equal TWO";
+}
+
+TEST_F(FieldArithmeticTest, SubtractionEdgeCases) {
+  // Test subtraction when a < b (should handle modular arithmetic correctly)
+  FieldElement small(5);
+  FieldElement large(10);
+  
+  // small - large should wrap around correctly
+  FieldElement result = small - large;
+  
+  // Verify: result + large should equal small (mod p)
+  FieldElement verification = result + large;
+  EXPECT_EQ(verification, small) << "Modular subtraction should satisfy (a - b) + b = a";
+  
+  // Test: ZERO - ONE should give MODULUS - 1
+  FieldElement zero = FieldConstants::ZERO;
+  FieldElement one = FieldConstants::ONE;
+  FieldElement zero_minus_one = zero - one;
+  
+  // zero_minus_one + one should equal zero
+  FieldElement check = zero_minus_one + one;
+  EXPECT_EQ(check, zero) << "(ZERO - ONE) + ONE should equal ZERO";
+  
+  // Test with constants directly
+  FieldElement modulus_minus_one;
+  FieldArithmetic::subtract(FieldConstants::MODULUS, one, modulus_minus_one);
+  EXPECT_EQ(zero_minus_one, modulus_minus_one) << "ZERO - ONE should equal MODULUS - ONE";
+}
+
 TEST_F(FieldArithmeticTest, Reduce512) {
   // Test the 512-bit reduction function
 
