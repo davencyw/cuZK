@@ -245,10 +245,11 @@ void reduce(FieldElement& a) {
 }
 
 void reduce_512(const uint64_t product[8], FieldElement& result) {
-  // Simple reduction for 512-bit to 256-bit
-  // This is a basic implementation - could be optimized
+  // Correct reduction for 512-bit to 256-bit for BN254 field
+  // The input represents: low + high * 2^256
+  // We need to compute: (low + high * (2^256 mod p)) mod p
 
-  FieldElement high, low;
+  FieldElement low, high;
 
   // Copy low and high parts
   low.limbs[0] = product[0];
@@ -268,22 +269,19 @@ void reduce_512(const uint64_t product[8], FieldElement& result) {
     return;
   }
 
-  // For BN254 field, 2^256 ≡ 4 (mod p) approximately
-  // So we compute: high * 4 + low, then reduce
-  FieldElement temp_high;
+  // The correct value of 2^256 mod p for BN254 field  
+  // This was computed using 2^256 mod p where p is the BN254 modulus
+  // Value: 0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb
+  const FieldElement TWO_256_MOD_P = FieldElement::from_hex("0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb");
 
-  // Multiply high by 4 (left shift by 2)
-  uint64_t carry = 0;
-  for (int i = 0; i < 4; ++i) {
-    uint64_t shifted = (high.limbs[i] << 2) | carry;
-    temp_high.limbs[i] = shifted;
-    carry = high.limbs[i] >> 62;  // Carry the top 2 bits
-  }
+  // Compute high * (2^256 mod p)
+  FieldElement high_contribution;
+  multiply(high, TWO_256_MOD_P, high_contribution);
 
-  // Add temp_high + low
-  add(temp_high, low, result);
+  // Add low + high * (2^256 mod p)
+  add(low, high_contribution, result);
 
-  // Final reduction
+  // Final reduction to ensure result < p
   reduce(result);
 }
 
