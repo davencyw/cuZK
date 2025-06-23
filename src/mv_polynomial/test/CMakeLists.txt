@@ -21,4 +21,4 @@ target_include_directories(test_mv_polynomial PRIVATE
 )
 
 # Add test to ctest
-add_test(NAME mv_polynomial_test COMMAND test_mv_polynomial) 
+add_test(NAME MvPolynomailTest COMMAND test_mv_polynomial) 

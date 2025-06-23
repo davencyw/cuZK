@@ -32,6 +32,7 @@ help:
 	@echo "  $(GREEN)test$(NC)          - Run all tests (summary output)"
 	@echo "  $(GREEN)test-verbose$(NC)  - Run all tests (detailed output)"
 	@echo "  $(GREEN)test-cuda$(NC)     - Run CUDA-specific tests (shows setup info if CUDA unavailable)"
+	@echo "  $(GREEN)test-mv-polynomial$(NC) - Run mv_polynomial test only"
 	@echo "  $(GREEN)benchmark$(NC)     - Run benchmark tests with performance output"
 	@echo ""
 	@echo "$(YELLOW)Debug targets:$(NC)"
@@ -94,6 +95,13 @@ benchmark: build
 	@echo "$(BLUE)Running benchmark tests...$(NC)"
 	@cd $(BUILD_DIR) && ctest -R "Benchmark" --verbose
 	@echo "$(GREEN)Benchmark tests completed!$(NC)"
+
+# Run mv_polynomial test only
+.PHONY: test-mv-polynomial
+test-mv-polynomial: build
+	@echo "$(BLUE)Running mv_polynomial test...$(NC)"
+	@cd $(BUILD_DIR) && make run_mv_polynomial_test
+	@echo "$(GREEN)mv_polynomial test completed!$(NC)"
 
 # Run CUDA tests (if available)
 .PHONY: test-cuda

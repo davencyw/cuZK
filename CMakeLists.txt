@@ -76,6 +76,13 @@ add_custom_target(run_cpu_tests
     COMMENT "Running all CPU tests"
 )
 
+# Create target to run just mv_polynomial test
+add_custom_target(run_mv_polynomial_test
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "MvPolynomailTest"
+    DEPENDS test_mv_polynomial
+    COMMENT "Running mv_polynomial test only"
+)
+
 # Create target to run just CUDA tests
 if(CUDA_AVAILABLE)
     add_custom_target(run_cuda_tests
