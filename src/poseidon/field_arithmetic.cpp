@@ -269,17 +269,46 @@ void reduce_512(const uint64_t product[8], FieldElement& result) {
     return;
   }
 
-  // The correct value of 2^256 mod p for BN254 field  
-  // This was computed using 2^256 mod p where p is the BN254 modulus
-  // Value: 0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb
-  const FieldElement TWO_256_MOD_P = FieldElement::from_hex("0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb");
-
-  // Compute high * (2^256 mod p)
-  FieldElement high_contribution;
-  multiply(high, TWO_256_MOD_P, high_contribution);
-
-  // Add low + high * (2^256 mod p)
-  add(low, high_contribution, result);
+  // Simple iterative reduction approach to avoid overflow and circular dependency
+  // We'll process the high part limb by limb, reducing each contribution immediately
+  
+  result = low; // Start with the low part
+  
+  // Process each limb of the high part
+  for (int i = 0; i < 4; ++i) {
+    if (high.limbs[i] == 0) continue; // Skip zero limbs
+    
+    // Each high.limbs[i] represents high.limbs[i] * 2^(256 + i*64)
+    // We need to add high.limbs[i] * 2^(i*64) * (2^256 mod p) to result
+    
+    // First, compute 2^(i*64) * (2^256 mod p) by repeated doubling
+    FieldElement contribution = FieldElement::from_hex("0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb");
+    
+    // Double the contribution i*64 times to get 2^(i*64) * (2^256 mod p)
+    for (int shift = 0; shift < i * 64; ++shift) {
+      FieldElement temp = contribution;
+      add(contribution, temp, contribution);
+    }
+    
+    // Now multiply by high.limbs[i] by repeated addition
+    // This avoids large multiplications that could overflow
+    uint64_t multiplier = high.limbs[i];
+    while (multiplier > 0) {
+      if (multiplier & 1) {
+        // Add contribution to result
+        FieldElement temp = result;
+        add(temp, contribution, result);
+      }
+      
+      // Double the contribution for the next bit
+      if (multiplier > 1) {
+        FieldElement temp = contribution;
+        add(contribution, temp, contribution);
+      }
+      
+      multiplier >>= 1;
+    }
+  }
 
   // Final reduction to ensure result < p
   reduce(result);
