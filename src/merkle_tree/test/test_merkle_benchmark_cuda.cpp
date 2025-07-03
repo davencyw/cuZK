@@ -12,7 +12,7 @@ using namespace MerkleTree;
 using namespace MerkleTree::MerkleTreeCUDA;
 
 class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     // Initialize Poseidon constants
     Poseidon::PoseidonConstants::init();
@@ -24,28 +24,30 @@ class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-    CudaNaryMerkleTree::cleanup_cuda();
-  }
+  void TearDown() override { CudaNaryMerkleTree::cleanup_cuda(); }
 
-  void print_benchmark_header(const std::string& title) {
+  void print_benchmark_header(const std::string &title) {
     std::cout << "\n" << std::string(100, '=') << "\n";
     std::cout << "  " << title << "\n";
     std::cout << std::string(100, '=') << "\n";
   }
 
-  void print_comparison_results(const MerkleUtils::TreeBenchmarkResult& cpu_result,
-                                const CudaMerkleTreeStats& cuda_result) {
+  void
+  print_comparison_results(const MerkleUtils::TreeBenchmarkResult &cpu_result,
+                           const CudaMerkleTreeStats &cuda_result) {
     std::cout << std::fixed << std::setprecision(3);
     std::cout << "Dataset: " << std::setw(6) << cpu_result.leaf_count
               << " leaves | Arity: " << std::setw(2) << cpu_result.arity
-              << " | Height: " << std::setw(2) << cpu_result.tree_height << "\n";
+              << " | Height: " << std::setw(2) << cpu_result.tree_height
+              << "\n";
     std::cout << std::string(100, '-') << "\n";
 
     // Tree building comparison
     std::cout << "TREE BUILDING:\n";
-    std::cout << "  CPU Time:    " << std::setw(10) << cpu_result.build_time_ms << " ms\n";
-    std::cout << "  CUDA Time:   " << std::setw(10) << cuda_result.build_time_ms << " ms\n";
+    std::cout << "  CPU Time:    " << std::setw(10) << cpu_result.build_time_ms
+              << " ms\n";
+    std::cout << "  CUDA Time:   " << std::setw(10) << cuda_result.build_time_ms
+              << " ms\n";
     if (cuda_result.build_time_ms > 0) {
       double speedup = cpu_result.build_time_ms / cuda_result.build_time_ms;
       std::cout << "  Speedup:     " << std::setw(10) << speedup << "x ";
@@ -59,12 +61,13 @@ class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
 
     // Proof generation comparison
     std::cout << "\nPROOF GENERATION:\n";
-    std::cout << "  CPU Time:    " << std::setw(10) << cpu_result.proof_generation_time_ms
-              << " ms\n";
-    std::cout << "  CUDA Time:   " << std::setw(10) << cuda_result.proof_generation_time_ms
-              << " ms\n";
+    std::cout << "  CPU Time:    " << std::setw(10)
+              << cpu_result.proof_generation_time_ms << " ms\n";
+    std::cout << "  CUDA Time:   " << std::setw(10)
+              << cuda_result.proof_generation_time_ms << " ms\n";
     if (cuda_result.proof_generation_time_ms > 0) {
-      double speedup = cpu_result.proof_generation_time_ms / cuda_result.proof_generation_time_ms;
+      double speedup = cpu_result.proof_generation_time_ms /
+                       cuda_result.proof_generation_time_ms;
       std::cout << "  Speedup:     " << std::setw(10) << speedup << "x ";
       if (speedup > 1.0) {
         std::cout << "(CUDA FASTER)";
@@ -76,13 +79,13 @@ class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
 
     // Proof verification comparison
     std::cout << "\nPROOF VERIFICATION:\n";
-    std::cout << "  CPU Time:    " << std::setw(10) << cpu_result.proof_verification_time_ms
-              << " ms\n";
-    std::cout << "  CUDA Time:   " << std::setw(10) << cuda_result.proof_verification_time_ms
-              << " ms\n";
+    std::cout << "  CPU Time:    " << std::setw(10)
+              << cpu_result.proof_verification_time_ms << " ms\n";
+    std::cout << "  CUDA Time:   " << std::setw(10)
+              << cuda_result.proof_verification_time_ms << " ms\n";
     if (cuda_result.proof_verification_time_ms > 0) {
-      double speedup =
-          cpu_result.proof_verification_time_ms / cuda_result.proof_verification_time_ms;
+      double speedup = cpu_result.proof_verification_time_ms /
+                       cuda_result.proof_verification_time_ms;
       std::cout << "  Speedup:     " << std::setw(10) << speedup << "x ";
       if (speedup > 1.0) {
         std::cout << "(CUDA FASTER)";
@@ -95,7 +98,7 @@ class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
     std::cout << "\n";
   }
 
-  void print_cuda_stats(const CudaMerkleTreeStats& stats) {
+  void print_cuda_stats(const CudaMerkleTreeStats &stats) {
     std::cout << std::fixed << std::setprecision(3);
     std::cout << "CUDA Performance Stats:\n";
     std::cout << "  Dataset Size:      " << stats.leaf_count << " leaves\n";
@@ -103,8 +106,10 @@ class MerkleTreeCUDABenchmarkTest : public ::testing::Test {
     std::cout << "  Tree Height:       " << stats.tree_height << "\n";
     std::cout << "  Total Time:        " << stats.total_time_ms << " ms\n";
     std::cout << "  Build Time:        " << stats.build_time_ms << " ms\n";
-    std::cout << "  Proof Gen Time:    " << stats.proof_generation_time_ms << " ms\n";
-    std::cout << "  Proof Ver Time:    " << stats.proof_verification_time_ms << " ms\n";
+    std::cout << "  Proof Gen Time:    " << stats.proof_generation_time_ms
+              << " ms\n";
+    std::cout << "  Proof Ver Time:    " << stats.proof_verification_time_ms
+              << " ms\n";
     std::cout << "  Trees/Second:      " << stats.trees_per_second << "\n";
     std::cout << "  Proofs/Second:     " << stats.proofs_per_second << "\n";
     std::cout << "  Speedup vs CPU:    " << stats.speedup_vs_cpu << "x\n";
@@ -126,12 +131,15 @@ TEST_F(MerkleTreeCUDABenchmarkTest, ComprehensiveCPUvsGPUComparison) {
       std::cout << "\n" << std::string(50, '-') << "\n";
 
       // CPU benchmark
-      auto cpu_result = MerkleUtils::benchmark_tree(leaf_count, arity, num_proofs);
+      auto cpu_result =
+          MerkleUtils::benchmark_tree(leaf_count, arity, num_proofs);
 
       // CUDA benchmark - first do individual benchmarks
       auto cuda_tree_stats = benchmark_cuda_tree_building(1, leaf_count, arity);
-      auto cuda_proof_gen_stats = benchmark_cuda_proof_generation(num_proofs, leaf_count, arity);
-      auto cuda_proof_ver_stats = benchmark_cuda_proof_verification(num_proofs, leaf_count, arity);
+      auto cuda_proof_gen_stats =
+          benchmark_cuda_proof_generation(num_proofs, leaf_count, arity);
+      auto cuda_proof_ver_stats =
+          benchmark_cuda_proof_verification(num_proofs, leaf_count, arity);
 
       // Combine CUDA stats for comparison
       CudaMerkleTreeStats combined_cuda_stats = {};
@@ -139,7 +147,8 @@ TEST_F(MerkleTreeCUDABenchmarkTest, ComprehensiveCPUvsGPUComparison) {
       combined_cuda_stats.arity = arity;
       combined_cuda_stats.tree_height = cuda_tree_stats.tree_height;
       combined_cuda_stats.build_time_ms = cuda_tree_stats.build_time_ms;
-      combined_cuda_stats.proof_generation_time_ms = cuda_proof_gen_stats.proof_generation_time_ms;
+      combined_cuda_stats.proof_generation_time_ms =
+          cuda_proof_gen_stats.proof_generation_time_ms;
       combined_cuda_stats.proof_verification_time_ms =
           cuda_proof_ver_stats.proof_verification_time_ms;
 
@@ -162,9 +171,9 @@ TEST_F(MerkleTreeCUDABenchmarkTest, ScalabilityAnalysis) {
     auto cuda_stats = benchmark_cuda_vs_cpu_merkle(num_trees, size, arity);
 
     std::cout << std::setw(12) << size << " | " << std::setw(15) << std::fixed
-              << std::setprecision(2) << cuda_stats.build_time_ms << " | " << std::setw(9)
-              << cuda_stats.trees_per_second << " | " << std::setw(13) << cuda_stats.speedup_vs_cpu
-              << "x\n";
+              << std::setprecision(2) << cuda_stats.build_time_ms << " | "
+              << std::setw(9) << cuda_stats.trees_per_second << " | "
+              << std::setw(13) << cuda_stats.speedup_vs_cpu << "x\n";
   }
 
   std::cout << std::string(80, '=') << "\n";
@@ -185,7 +194,8 @@ TEST_F(MerkleTreeCUDABenchmarkTest, BatchProofPerformanceComparison) {
   NaryMerkleTree cpu_tree(test_data, config);
   CudaNaryMerkleTree cuda_tree(test_data, config);
 
-  std::cout << "Batch Size | CPU Proof Gen (ms) | GPU Proof Gen (ms) | CPU Verify (ms) | GPU "
+  std::cout << "Batch Size | CPU Proof Gen (ms) | GPU Proof Gen (ms) | CPU "
+               "Verify (ms) | GPU "
                "Verify (ms) | Speedup\n";
   std::cout << std::string(100, '-') << "\n";
 
@@ -205,8 +215,8 @@ TEST_F(MerkleTreeCUDABenchmarkTest, BatchProofPerformanceComparison) {
     auto cpu_gen_end = std::chrono::high_resolution_clock::now();
 
     // CPU proof verification
-    bool cpu_verify_result =
-        cpu_tree.verify_batch_proofs(cpu_proofs, leaf_values, cpu_tree.get_root_hash());
+    bool cpu_verify_result = cpu_tree.verify_batch_proofs(
+        cpu_proofs, leaf_values, cpu_tree.get_root_hash());
     auto cpu_verify_end = std::chrono::high_resolution_clock::now();
 
     // CUDA proof generation
@@ -215,25 +225,32 @@ TEST_F(MerkleTreeCUDABenchmarkTest, BatchProofPerformanceComparison) {
     auto cuda_gen_end = std::chrono::high_resolution_clock::now();
 
     // CUDA proof verification
-    bool cuda_verify_result = cuda_tree.verify_batch_proofs(cuda_proofs, leaf_values);
+    bool cuda_verify_result =
+        cuda_tree.verify_batch_proofs(cuda_proofs, leaf_values);
     auto cuda_verify_end = std::chrono::high_resolution_clock::now();
 
-    auto cpu_gen_time = std::chrono::duration<double, std::milli>(cpu_gen_end - cpu_start).count();
+    auto cpu_gen_time =
+        std::chrono::duration<double, std::milli>(cpu_gen_end - cpu_start)
+            .count();
     auto cpu_verify_time =
-        std::chrono::duration<double, std::milli>(cpu_verify_end - cpu_gen_end).count();
+        std::chrono::duration<double, std::milli>(cpu_verify_end - cpu_gen_end)
+            .count();
     auto cuda_gen_time =
-        std::chrono::duration<double, std::milli>(cuda_gen_end - cuda_start).count();
-    auto cuda_verify_time =
-        std::chrono::duration<double, std::milli>(cuda_verify_end - cuda_gen_end).count();
+        std::chrono::duration<double, std::milli>(cuda_gen_end - cuda_start)
+            .count();
+    auto cuda_verify_time = std::chrono::duration<double, std::milli>(
+                                cuda_verify_end - cuda_gen_end)
+                                .count();
 
     double total_cpu_time = cpu_gen_time + cpu_verify_time;
     double total_cuda_time = cuda_gen_time + cuda_verify_time;
     double speedup = total_cuda_time > 0 ? total_cpu_time / total_cuda_time : 0;
 
-    std::cout << std::setw(10) << batch_size << " | " << std::setw(18) << std::fixed
-              << std::setprecision(2) << cpu_gen_time << " | " << std::setw(18) << cuda_gen_time
-              << " | " << std::setw(15) << cpu_verify_time << " | " << std::setw(15)
-              << cuda_verify_time << " | " << std::setw(7) << speedup << "x\n";
+    std::cout << std::setw(10) << batch_size << " | " << std::setw(18)
+              << std::fixed << std::setprecision(2) << cpu_gen_time << " | "
+              << std::setw(18) << cuda_gen_time << " | " << std::setw(15)
+              << cpu_verify_time << " | " << std::setw(15) << cuda_verify_time
+              << " | " << std::setw(7) << speedup << "x\n";
 
     EXPECT_TRUE(cpu_verify_result);
     EXPECT_TRUE(cuda_verify_result);
@@ -267,13 +284,13 @@ TEST_F(MerkleTreeCUDABenchmarkTest, OptimalConfigurationAnalysis) {
       }
 
       std::cout << std::setw(5) << arity << " | " << std::setw(15) << std::fixed
-                << std::setprecision(2) << stats.build_time_ms << " | " << std::setw(9)
-                << stats.trees_per_second << " | " << std::setw(13) << stats.speedup_vs_cpu
-                << "x\n";
+                << std::setprecision(2) << stats.build_time_ms << " | "
+                << std::setw(9) << stats.trees_per_second << " | "
+                << std::setw(13) << stats.speedup_vs_cpu << "x\n";
     }
 
-    std::cout << ">> Optimal arity for " << size << " leaves: " << best_arity << " (" << best_perf
-              << " trees/sec)\n";
+    std::cout << ">> Optimal arity for " << size << " leaves: " << best_arity
+              << " (" << best_perf << " trees/sec)\n";
   }
 
   std::cout << std::string(100, '=') << "\n";
@@ -286,7 +303,8 @@ TEST_F(MerkleTreeCUDABenchmarkTest, ThroughputComparison) {
   const size_t arity = 4;
   std::vector<size_t> tree_counts = {1, 5, 10, 25, 50, 100};
 
-  std::cout << "Tree Count | CPU Build (ms) | GPU Build (ms) | CPU Throughput (trees/s) | GPU "
+  std::cout << "Tree Count | CPU Build (ms) | GPU Build (ms) | CPU Throughput "
+               "(trees/s) | GPU "
                "Throughput (trees/s) | Speedup\n";
   std::cout << std::string(110, '-') << "\n";
 
@@ -297,11 +315,13 @@ TEST_F(MerkleTreeCUDABenchmarkTest, ThroughputComparison) {
     double cpu_time = stats.build_time_ms * stats.speedup_vs_cpu;
     double cpu_throughput = cpu_time > 0 ? (tree_count * 1000.0) / cpu_time : 0;
 
-    std::cout << std::setw(10) << tree_count << " | " << std::setw(15) << std::fixed
-              << std::setprecision(2) << cpu_time << " | " << std::setw(15) << stats.build_time_ms
-              << " | " << std::setw(24) << std::fixed << std::setprecision(1) << cpu_throughput
-              << " | " << std::setw(24) << static_cast<double>(stats.trees_per_second) << " | "
-              << std::setw(7) << std::setprecision(2) << stats.speedup_vs_cpu << "x\n";
+    std::cout << std::setw(10) << tree_count << " | " << std::setw(15)
+              << std::fixed << std::setprecision(2) << cpu_time << " | "
+              << std::setw(15) << stats.build_time_ms << " | " << std::setw(24)
+              << std::fixed << std::setprecision(1) << cpu_throughput << " | "
+              << std::setw(24) << static_cast<double>(stats.trees_per_second)
+              << " | " << std::setw(7) << std::setprecision(2)
+              << stats.speedup_vs_cpu << "x\n";
   }
 
   std::cout << std::string(110, '=') << "\n";
@@ -320,8 +340,10 @@ TEST_F(MerkleTreeCUDABenchmarkTest, QuickPerformanceCheck) {
 
   // CUDA benchmark
   auto cuda_build_stats = benchmark_cuda_tree_building(1, leaf_count, arity);
-  auto cuda_proof_stats = benchmark_cuda_proof_generation(num_proofs, leaf_count, arity);
-  auto cuda_verify_stats = benchmark_cuda_proof_verification(num_proofs, leaf_count, arity);
+  auto cuda_proof_stats =
+      benchmark_cuda_proof_generation(num_proofs, leaf_count, arity);
+  auto cuda_verify_stats =
+      benchmark_cuda_proof_verification(num_proofs, leaf_count, arity);
 
   // Combine results
   CudaMerkleTreeStats combined_stats = {};
@@ -329,14 +351,17 @@ TEST_F(MerkleTreeCUDABenchmarkTest, QuickPerformanceCheck) {
   combined_stats.arity = arity;
   combined_stats.tree_height = cuda_build_stats.tree_height;
   combined_stats.build_time_ms = cuda_build_stats.build_time_ms;
-  combined_stats.proof_generation_time_ms = cuda_proof_stats.proof_generation_time_ms;
-  combined_stats.proof_verification_time_ms = cuda_verify_stats.proof_verification_time_ms;
+  combined_stats.proof_generation_time_ms =
+      cuda_proof_stats.proof_generation_time_ms;
+  combined_stats.proof_verification_time_ms =
+      cuda_verify_stats.proof_verification_time_ms;
 
   print_comparison_results(cpu_result, combined_stats);
 
   // Basic sanity checks
   EXPECT_GT(cuda_build_stats.build_time_ms, 0);
-  EXPECT_GE(cuda_proof_stats.proof_generation_time_ms, 0);  // Allow 0 for very fast operations
+  EXPECT_GE(cuda_proof_stats.proof_generation_time_ms,
+            0); // Allow 0 for very fast operations
   EXPECT_GT(cuda_verify_stats.proof_verification_time_ms, 0);
   EXPECT_EQ(combined_stats.tree_height, cpu_result.tree_height);
 }

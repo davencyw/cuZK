@@ -13,13 +13,16 @@ USING_FIELD_OPS()
 bool PoseidonConstants::initialized_ = false;
 
 // Static constants (will be properly initialized in init())
-std::array<FieldElement, PoseidonParams::TOTAL_ROUNDS * PoseidonParams::STATE_SIZE>
+std::array<FieldElement,
+           PoseidonParams::TOTAL_ROUNDS * PoseidonParams::STATE_SIZE>
     PoseidonConstants::ROUND_CONSTANTS;
-std::array<FieldElement, PoseidonParams::STATE_SIZE * PoseidonParams::STATE_SIZE>
+std::array<FieldElement,
+           PoseidonParams::STATE_SIZE * PoseidonParams::STATE_SIZE>
     PoseidonConstants::MDS_MATRIX;
 
 void PoseidonConstants::init() {
-  if (initialized_) return;
+  if (initialized_)
+    return;
 
   FieldConstants::init();
   generate_round_constants();
@@ -33,8 +36,10 @@ void PoseidonConstants::generate_round_constants() {
   for (size_t i = 0; i < ROUND_CONSTANTS.size(); ++i) {
     FieldElement base_value(i + 1);
     // Mix in some more entropy
-    multiply(base_value, FieldElement(0x123456789ABCDEFULL), ROUND_CONSTANTS[i]);
-    add(ROUND_CONSTANTS[i], FieldElement(i * 0x987654321ULL), ROUND_CONSTANTS[i]);
+    multiply(base_value, FieldElement(0x123456789ABCDEFULL),
+             ROUND_CONSTANTS[i]);
+    add(ROUND_CONSTANTS[i], FieldElement(i * 0x987654321ULL),
+        ROUND_CONSTANTS[i]);
   }
 }
 
@@ -81,35 +86,38 @@ void PoseidonHash::permutation(FieldElement state[PoseidonParams::STATE_SIZE]) {
   }
 }
 
-FieldElement PoseidonHash::hash_single(const FieldElement& input) {
+FieldElement PoseidonHash::hash_single(const FieldElement &input) {
   FieldElement state[PoseidonParams::STATE_SIZE] = {ONE, input, ZERO};
   permutation(state);
-  return state[1];  // Return the first rate element
+  return state[1]; // Return the first rate element
 }
 
-FieldElement PoseidonHash::hash_pair(const FieldElement& left, const FieldElement& right) {
+FieldElement PoseidonHash::hash_pair(const FieldElement &left,
+                                     const FieldElement &right) {
   FieldElement state[PoseidonParams::STATE_SIZE] = {TWO, left, right};
   permutation(state);
-  return state[1];  // Return the first rate element
+  return state[1]; // Return the first rate element
 }
 
-FieldElement PoseidonHash::hash_multiple(const std::vector<FieldElement>& inputs) {
+FieldElement
+PoseidonHash::hash_multiple(const std::vector<FieldElement> &inputs) {
   return sponge(inputs);
 }
 
-FieldElement PoseidonHash::sponge(const std::vector<FieldElement>& inputs) {
+FieldElement PoseidonHash::sponge(const std::vector<FieldElement> &inputs) {
   // Initialize with a domain separator for sponge construction
   FieldElement state[PoseidonParams::STATE_SIZE] = {
-      FieldElement(3),  // Different from single (1) and pair (2)
-      ZERO,
-      ZERO};
+      FieldElement(3), // Different from single (1) and pair (2)
+      ZERO, ZERO};
 
   // Absorb phase
   size_t input_idx = 0;
   while (input_idx < inputs.size()) {
     // Add up to RATE inputs to the state
-    for (size_t i = 0; i < PoseidonParams::RATE && input_idx < inputs.size(); ++i) {
-      add(state[i + PoseidonParams::CAPACITY], inputs[input_idx], state[i + PoseidonParams::CAPACITY]);
+    for (size_t i = 0; i < PoseidonParams::RATE && input_idx < inputs.size();
+         ++i) {
+      add(state[i + PoseidonParams::CAPACITY], inputs[input_idx],
+          state[i + PoseidonParams::CAPACITY]);
       input_idx++;
     }
 
@@ -121,8 +129,8 @@ FieldElement PoseidonHash::sponge(const std::vector<FieldElement>& inputs) {
   return state[PoseidonParams::CAPACITY];
 }
 
-void PoseidonHash::add_round_constants(FieldElement state[PoseidonParams::STATE_SIZE],
-                                       size_t round) {
+void PoseidonHash::add_round_constants(
+    FieldElement state[PoseidonParams::STATE_SIZE], size_t round) {
   for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
     size_t const_idx = round * PoseidonParams::STATE_SIZE + i;
     add(state[i], PoseidonConstants::ROUND_CONSTANTS[const_idx], state[i]);
@@ -135,19 +143,23 @@ void PoseidonHash::apply_sbox(FieldElement state[PoseidonParams::STATE_SIZE]) {
   }
 }
 
-void PoseidonHash::apply_partial_sbox(FieldElement state[PoseidonParams::STATE_SIZE]) {
+void PoseidonHash::apply_partial_sbox(
+    FieldElement state[PoseidonParams::STATE_SIZE]) {
   // Only apply S-box to the first element in partial rounds
   power5(state[0], state[0]);
 }
 
-void PoseidonHash::apply_mds_matrix(FieldElement state[PoseidonParams::STATE_SIZE]) {
+void PoseidonHash::apply_mds_matrix(
+    FieldElement state[PoseidonParams::STATE_SIZE]) {
   FieldElement new_state[PoseidonParams::STATE_SIZE];
 
   for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
     new_state[i] = ZERO;
     for (size_t j = 0; j < PoseidonParams::STATE_SIZE; ++j) {
       FieldElement temp;
-      multiply(PoseidonConstants::MDS_MATRIX[i * PoseidonParams::STATE_SIZE + j], state[j], temp);
+      multiply(
+          PoseidonConstants::MDS_MATRIX[i * PoseidonParams::STATE_SIZE + j],
+          state[j], temp);
       add(new_state[i], temp, new_state[i]);
     }
   }
@@ -170,12 +182,15 @@ HashingStats benchmark_poseidon(size_t num_iterations) {
   }
 
   auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+  auto duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
   HashingStats stats;
   stats.total_time_ms = duration.count() / 1000000.0;
-  stats.avg_time_per_hash_ns = static_cast<double>(duration.count()) / num_iterations;
-  stats.hashes_per_second = static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
+  stats.avg_time_per_hash_ns =
+      static_cast<double>(duration.count()) / num_iterations;
+  stats.hashes_per_second =
+      static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
   stats.total_hashes = num_iterations;
 
   return stats;
@@ -193,15 +208,18 @@ HashingStats benchmark_poseidon_pairs(size_t num_pairs) {
   }
 
   auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+  auto duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
   HashingStats stats;
   stats.total_time_ms = duration.count() / 1000000.0;
-  stats.avg_time_per_hash_ns = static_cast<double>(duration.count()) / num_pairs;
-  stats.hashes_per_second = static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
+  stats.avg_time_per_hash_ns =
+      static_cast<double>(duration.count()) / num_pairs;
+  stats.hashes_per_second =
+      static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
   stats.total_hashes = num_pairs;
 
   return stats;
 }
 
-}  // namespace Poseidon
+} // namespace Poseidon

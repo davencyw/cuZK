@@ -7,10 +7,8 @@
 using namespace Poseidon;
 
 class PoseidonTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    PoseidonConstants::init();
-  }
+protected:
+  void SetUp() override { PoseidonConstants::init(); }
 };
 
 TEST_F(PoseidonTest, ConstantsInitialization) {
@@ -19,7 +17,7 @@ TEST_F(PoseidonTest, ConstantsInitialization) {
 
   // Check that round constants are non-zero
   bool found_nonzero = false;
-  for (const auto& constant : PoseidonConstants::ROUND_CONSTANTS) {
+  for (const auto &constant : PoseidonConstants::ROUND_CONSTANTS) {
     if (!constant.is_zero()) {
       found_nonzero = true;
       break;
@@ -29,7 +27,7 @@ TEST_F(PoseidonTest, ConstantsInitialization) {
 
   // Check that MDS matrix has non-zero elements
   found_nonzero = false;
-  for (const auto& element : PoseidonConstants::MDS_MATRIX) {
+  for (const auto &element : PoseidonConstants::MDS_MATRIX) {
     if (!element.is_zero()) {
       found_nonzero = true;
       break;
@@ -136,12 +134,12 @@ TEST_F(PoseidonTest, HashMultipleSingle) {
   FieldElement hash = PoseidonHash::hash_multiple(single_input);
 
   EXPECT_TRUE(hash < FieldConstants::MODULUS);
-  EXPECT_FALSE(hash.is_zero());  // Should not be zero for non-zero input
+  EXPECT_FALSE(hash.is_zero()); // Should not be zero for non-zero input
 }
 
 TEST_F(PoseidonTest, HashMultipleConsistency) {
-  std::vector<FieldElement> inputs = {
-      FieldElement(1), FieldElement(2), FieldElement(3), FieldElement(4)};
+  std::vector<FieldElement> inputs = {FieldElement(1), FieldElement(2),
+                                      FieldElement(3), FieldElement(4)};
 
   FieldElement hash1 = PoseidonHash::hash_multiple(inputs);
   FieldElement hash2 = PoseidonHash::hash_multiple(inputs);
@@ -151,7 +149,8 @@ TEST_F(PoseidonTest, HashMultipleConsistency) {
 
 TEST_F(PoseidonTest, HashMultipleDifferentLengths) {
   std::vector<FieldElement> short_inputs = {FieldElement(1), FieldElement(2)};
-  std::vector<FieldElement> long_inputs = {FieldElement(1), FieldElement(2), FieldElement(3)};
+  std::vector<FieldElement> long_inputs = {FieldElement(1), FieldElement(2),
+                                           FieldElement(3)};
 
   FieldElement hash1 = PoseidonHash::hash_multiple(short_inputs);
   FieldElement hash2 = PoseidonHash::hash_multiple(long_inputs);
@@ -160,7 +159,8 @@ TEST_F(PoseidonTest, HashMultipleDifferentLengths) {
 }
 
 TEST_F(PoseidonTest, SpongeFunction) {
-  std::vector<FieldElement> inputs = {FieldElement(10), FieldElement(20), FieldElement(30)};
+  std::vector<FieldElement> inputs = {FieldElement(10), FieldElement(20),
+                                      FieldElement(30)};
 
   FieldElement sponge_hash = PoseidonHash::sponge(inputs);
   FieldElement multiple_hash = PoseidonHash::hash_multiple(inputs);
@@ -206,7 +206,8 @@ TEST_F(PoseidonTest, StateSize) {
   EXPECT_EQ(PoseidonParams::STATE_SIZE, 3);
   EXPECT_EQ(PoseidonParams::CAPACITY, 1);
   EXPECT_EQ(PoseidonParams::RATE, 2);
-  EXPECT_EQ(PoseidonParams::RATE, PoseidonParams::STATE_SIZE - PoseidonParams::CAPACITY);
+  EXPECT_EQ(PoseidonParams::RATE,
+            PoseidonParams::STATE_SIZE - PoseidonParams::CAPACITY);
 }
 
 TEST_F(PoseidonTest, RandomInputsProduceDifferentHashes) {
@@ -221,9 +222,8 @@ TEST_F(PoseidonTest, RandomInputsProduceDifferentHashes) {
   }
 
   // Count unique hashes (should be close to num_tests)
-  std::sort(hashes.begin(), hashes.end(), [](const FieldElement& a, const FieldElement& b) {
-    return a < b;
-  });
+  std::sort(hashes.begin(), hashes.end(),
+            [](const FieldElement &a, const FieldElement &b) { return a < b; });
 
   size_t unique_count = 1;
   for (size_t i = 1; i < hashes.size(); ++i) {
@@ -239,19 +239,16 @@ TEST_F(PoseidonTest, RandomInputsProduceDifferentHashes) {
 
 TEST_F(PoseidonTest, FieldElementBounds) {
   // Test various inputs to ensure outputs are always in field
-  std::vector<FieldElement> test_inputs = {FieldConstants::ZERO,
-                                           FieldConstants::ONE,
-                                           FieldConstants::TWO,
-                                           FieldElement::random(),
-                                           FieldElement::random(),
-                                           FieldElement::random()};
+  std::vector<FieldElement> test_inputs = {
+      FieldConstants::ZERO,   FieldConstants::ONE,    FieldConstants::TWO,
+      FieldElement::random(), FieldElement::random(), FieldElement::random()};
 
-  for (const auto& input : test_inputs) {
+  for (const auto &input : test_inputs) {
     FieldElement hash = PoseidonHash::hash_single(input);
     EXPECT_TRUE(hash < FieldConstants::MODULUS);
 
     // Test pairs
-    for (const auto& second_input : test_inputs) {
+    for (const auto &second_input : test_inputs) {
       FieldElement pair_hash = PoseidonHash::hash_pair(input, second_input);
       EXPECT_TRUE(pair_hash < FieldConstants::MODULUS);
     }
@@ -270,7 +267,8 @@ TEST_F(PoseidonTest, BenchmarkSingleHashes) {
 
   std::cout << "Single hash benchmark:" << std::endl;
   std::cout << "  Total time: " << stats.total_time_ms << " ms" << std::endl;
-  std::cout << "  Avg time per hash: " << stats.avg_time_per_hash_ns << " ns" << std::endl;
+  std::cout << "  Avg time per hash: " << stats.avg_time_per_hash_ns << " ns"
+            << std::endl;
   std::cout << "  Hashes per second: " << stats.hashes_per_second << std::endl;
 }
 
@@ -283,6 +281,7 @@ TEST_F(PoseidonTest, BenchmarkPairHashes) {
 
   std::cout << "Pair hash benchmark:" << std::endl;
   std::cout << "  Total time: " << stats.total_time_ms << " ms" << std::endl;
-  std::cout << "  Avg time per hash: " << stats.avg_time_per_hash_ns << " ns" << std::endl;
+  std::cout << "  Avg time per hash: " << stats.avg_time_per_hash_ns << " ns"
+            << std::endl;
   std::cout << "  Hashes per second: " << stats.hashes_per_second << std::endl;
 }

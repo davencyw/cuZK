@@ -10,7 +10,7 @@
 using namespace MerkleTree;
 
 class MerkleTreeBenchmarkTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     // Initialize Poseidon constants
     Poseidon::PoseidonConstants::init();
@@ -23,13 +23,16 @@ class MerkleTreeBenchmarkTest : public ::testing::Test {
     std::cout << std::string(80, '=') << "\n";
   }
 
-  void print_benchmark_results(const MerkleUtils::TreeBenchmarkResult& result) {
+  void print_benchmark_results(const MerkleUtils::TreeBenchmarkResult &result) {
     std::cout << std::fixed << std::setprecision(3);
-    std::cout << "Leaves: " << std::setw(8) << result.leaf_count << " | Arity: " << std::setw(2)
-              << result.arity << " | Height: " << std::setw(2) << result.tree_height
+    std::cout << "Leaves: " << std::setw(8) << result.leaf_count
+              << " | Arity: " << std::setw(2) << result.arity
+              << " | Height: " << std::setw(2) << result.tree_height
               << " | Build: " << std::setw(8) << result.build_time_ms << "ms"
-              << " | Proof Gen: " << std::setw(8) << result.proof_generation_time_ms << "ms"
-              << " | Proof Ver: " << std::setw(8) << result.proof_verification_time_ms << "ms\n";
+              << " | Proof Gen: " << std::setw(8)
+              << result.proof_generation_time_ms << "ms"
+              << " | Proof Ver: " << std::setw(8)
+              << result.proof_verification_time_ms << "ms\n";
   }
 };
 
@@ -84,7 +87,8 @@ TEST_F(MerkleTreeBenchmarkTest, OptimalArityAnalysis) {
 
     for (size_t arity = 2; arity <= 8; ++arity) {
       auto result = MerkleUtils::benchmark_tree(size, arity, num_proofs);
-      double total_time = result.build_time_ms + result.proof_generation_time_ms +
+      double total_time = result.build_time_ms +
+                          result.proof_generation_time_ms +
                           result.proof_verification_time_ms;
 
       if (total_time < best_total_time) {
@@ -129,11 +133,13 @@ TEST_F(MerkleTreeBenchmarkTest, BatchProofPerformance) {
     auto proofs = tree.generate_batch_proofs(indices);
     auto end = std::chrono::high_resolution_clock::now();
 
-    double total_time = std::chrono::duration<double, std::milli>(end - start).count();
+    double total_time =
+        std::chrono::duration<double, std::milli>(end - start).count();
     double avg_time = total_time / batch_size;
 
-    std::cout << std::setw(10) << batch_size << " | " << std::setw(15) << std::fixed
-              << std::setprecision(3) << total_time << " | " << std::setw(17) << avg_time << "\n";
+    std::cout << std::setw(10) << batch_size << " | " << std::setw(15)
+              << std::fixed << std::setprecision(3) << total_time << " | "
+              << std::setw(17) << avg_time << "\n";
   }
 
   std::cout << std::string(80, '=') << "\n";
@@ -161,9 +167,10 @@ TEST_F(MerkleTreeBenchmarkTest, ProofSizeAnalysis) {
       size_t total_elements = proof_levels * siblings_per_level;
       size_t approx_size = total_elements * sizeof(Poseidon::FieldElement);
 
-      std::cout << std::setw(5) << arity << " | " << std::setw(11) << tree.get_tree_height()
-                << " | " << std::setw(12) << proof_levels << " | " << std::setw(18)
-                << siblings_per_level << " | " << std::setw(20) << approx_size << " bytes\n";
+      std::cout << std::setw(5) << arity << " | " << std::setw(11)
+                << tree.get_tree_height() << " | " << std::setw(12)
+                << proof_levels << " | " << std::setw(18) << siblings_per_level
+                << " | " << std::setw(20) << approx_size << " bytes\n";
     }
   }
 
@@ -182,22 +189,26 @@ TEST_F(MerkleTreeBenchmarkTest, TreeConstructionMethods) {
   auto start = std::chrono::high_resolution_clock::now();
   NaryMerkleTree tree1(test_data);
   auto end = std::chrono::high_resolution_clock::now();
-  auto build_time = std::chrono::duration<double, std::milli>(end - start).count();
+  auto build_time =
+      std::chrono::duration<double, std::milli>(end - start).count();
 
-  std::cout << "Full construction:     " << std::setw(10) << std::fixed << std::setprecision(3)
-            << build_time << "ms\n";
+  std::cout << "Full construction:     " << std::setw(10) << std::fixed
+            << std::setprecision(3) << build_time << "ms\n";
 
   // Test 2: Build tree incrementally
   start = std::chrono::high_resolution_clock::now();
   NaryMerkleTree tree2;
-  for (const auto& leaf : test_data) {
+  for (const auto &leaf : test_data) {
     tree2.insert_leaf(leaf);
   }
   end = std::chrono::high_resolution_clock::now();
-  auto incremental_time = std::chrono::duration<double, std::milli>(end - start).count();
+  auto incremental_time =
+      std::chrono::duration<double, std::milli>(end - start).count();
 
-  std::cout << "Incremental construction: " << std::setw(7) << incremental_time << "ms";
-  std::cout << " (slower by " << std::setprecision(1) << (incremental_time / build_time) << "x)\n";
+  std::cout << "Incremental construction: " << std::setw(7) << incremental_time
+            << "ms";
+  std::cout << " (slower by " << std::setprecision(1)
+            << (incremental_time / build_time) << "x)\n";
 
   // Verify both trees have same root
   EXPECT_EQ(tree1.get_root_hash(), tree2.get_root_hash());
@@ -211,7 +222,7 @@ TEST_F(MerkleTreeBenchmarkTest, DISABLED_StressTestLargeTree) {
   std::cout << "Stress test with very large dataset (disabled by default)\n";
   std::cout << std::string(80, '-') << "\n";
 
-  const size_t large_size = 65536;  // 64K leaves
+  const size_t large_size = 65536; // 64K leaves
   const size_t arity = 4;
 
   std::cout << "Building tree with " << large_size << " leaves...\n";

@@ -10,7 +10,7 @@ using namespace Poseidon;
 using CudaFieldArithmetic = Poseidon::CudaFieldOps::CudaFieldArithmetic;
 
 class CudaFieldArithmeticTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     FieldConstants::init();
 
@@ -25,9 +25,7 @@ class CudaFieldArithmeticTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-    CudaFieldArithmetic::cleanup();
-  }
+  void TearDown() override { CudaFieldArithmetic::cleanup(); }
 
   // Helper function to create test vectors
   std::vector<FieldElement> createTestVector(size_t count) {
@@ -40,9 +38,9 @@ class CudaFieldArithmeticTest : public ::testing::Test {
   }
 
   // Helper function to compare CPU and GPU results
-  bool compareResults(const std::vector<FieldElement>& cpu_result,
-                      const std::vector<FieldElement>& gpu_result,
-                      const std::string& operation_name) {
+  bool compareResults(const std::vector<FieldElement> &cpu_result,
+                      const std::vector<FieldElement> &gpu_result,
+                      const std::string &operation_name) {
     if (cpu_result.size() != gpu_result.size()) {
       std::cerr << operation_name << ": Size mismatch" << std::endl;
       return false;
@@ -91,8 +89,8 @@ TEST_F(CudaFieldArithmeticTest, BatchSubtraction) {
 
   // Modify b to be smaller than a
   for (size_t i = 0; i < test_size; ++i) {
-    b[i] = FieldElement(i + 1);        // b[i] = i+1
-    a[i] = FieldElement(2 * (i + 1));  // a[i] = 2*(i+1)
+    b[i] = FieldElement(i + 1);       // b[i] = i+1
+    a[i] = FieldElement(2 * (i + 1)); // a[i] = 2*(i+1)
   }
 
   // CPU computation
@@ -111,7 +109,8 @@ TEST_F(CudaFieldArithmeticTest, BatchSubtraction) {
 }
 
 TEST_F(CudaFieldArithmeticTest, BatchMultiplication) {
-  const size_t test_size = 500;  // Smaller size for multiplication (more expensive)
+  const size_t test_size =
+      500; // Smaller size for multiplication (more expensive)
 
   // Create test data
   auto a = createTestVector(test_size);
@@ -202,8 +201,10 @@ TEST_F(CudaFieldArithmeticTest, LargeVectorPerformance) {
 
   ASSERT_TRUE(success);
 
-  auto gpu_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "GPU batch multiplication time: " << gpu_duration.count() << " ms" << std::endl;
+  auto gpu_duration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  std::cout << "GPU batch multiplication time: " << gpu_duration.count()
+            << " ms" << std::endl;
 
   // Time CPU multiplication for comparison
   start = std::chrono::high_resolution_clock::now();
@@ -214,11 +215,14 @@ TEST_F(CudaFieldArithmeticTest, LargeVectorPerformance) {
   }
   end = std::chrono::high_resolution_clock::now();
 
-  auto cpu_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "CPU batch multiplication time: " << cpu_duration.count() << " ms" << std::endl;
+  auto cpu_duration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  std::cout << "CPU batch multiplication time: " << cpu_duration.count()
+            << " ms" << std::endl;
 
   if (cpu_duration.count() > 0) {
-    double speedup = static_cast<double>(cpu_duration.count()) / gpu_duration.count();
+    double speedup =
+        static_cast<double>(cpu_duration.count()) / gpu_duration.count();
     std::cout << "GPU speedup: " << speedup << "x" << std::endl;
   }
 
@@ -244,7 +248,8 @@ TEST_F(CudaFieldArithmeticTest, EdgeCases) {
   std::vector<FieldElement> single_b = {FieldElement(13)};
   std::vector<FieldElement> single_result;
 
-  EXPECT_TRUE(CudaFieldArithmetic::batch_add(single_a, single_b, single_result));
+  EXPECT_TRUE(
+      CudaFieldArithmetic::batch_add(single_a, single_b, single_result));
   EXPECT_EQ(single_result.size(), 1);
   EXPECT_EQ(single_result[0], FieldElement(55));
 
@@ -253,7 +258,8 @@ TEST_F(CudaFieldArithmeticTest, EdgeCases) {
   std::vector<FieldElement> mismatch_b = {FieldElement(1)};
   std::vector<FieldElement> mismatch_result;
 
-  EXPECT_FALSE(CudaFieldArithmetic::batch_add(mismatch_a, mismatch_b, mismatch_result));
+  EXPECT_FALSE(
+      CudaFieldArithmetic::batch_add(mismatch_a, mismatch_b, mismatch_result));
 }
 
 TEST_F(CudaFieldArithmeticTest, Reduce512Consistency) {
@@ -266,27 +272,30 @@ TEST_F(CudaFieldArithmeticTest, Reduce512Consistency) {
   test_pairs.push_back({FieldElement(123), FieldElement(456)});
 
   // Test case 2: Medium values
-  test_pairs.push_back({FieldElement(0x123456789ABCDEFULL), FieldElement(0xFEDCBA9876543210ULL)});
+  test_pairs.push_back({FieldElement(0x123456789ABCDEFULL),
+                        FieldElement(0xFEDCBA9876543210ULL)});
 
   // Test case 3: Large values that will produce significant high parts
-  test_pairs.push_back({FieldElement(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0, 0),
-                        FieldElement(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0, 0)});
+  test_pairs.push_back(
+      {FieldElement(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0, 0),
+       FieldElement(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0, 0)});
 
   // Test case 4: Random values
   for (int i = 0; i < 10; ++i) {
     test_pairs.push_back({FieldElement::random(), FieldElement::random()});
   }
 
-  for (const auto& pair : test_pairs) {
-    const FieldElement& a = pair.first;
-    const FieldElement& b = pair.second;
+  for (const auto &pair : test_pairs) {
+    const FieldElement &a = pair.first;
+    const FieldElement &b = pair.second;
 
     // Manually compute 512-bit product
     uint64_t product[8] = {0};
     for (int i = 0; i < 4; ++i) {
       uint64_t carry = 0;
       for (int j = 0; j < 4; ++j) {
-        __uint128_t prod = (__uint128_t)a.limbs[i] * b.limbs[j] + product[i + j] + carry;
+        __uint128_t prod =
+            (__uint128_t)a.limbs[i] * b.limbs[j] + product[i + j] + carry;
         product[i + j] = (uint64_t)prod;
         carry = (uint64_t)(prod >> 64);
       }
@@ -300,8 +309,8 @@ TEST_F(CudaFieldArithmeticTest, Reduce512Consistency) {
     // Test that CPU reduction matches regular multiplication
     FieldElement cpu_mult_result = a * b;
     EXPECT_EQ(cpu_result, cpu_mult_result)
-        << "CPU reduce_512 doesn't match regular multiplication for inputs: " << a.to_hex() << " * "
-        << b.to_hex();
+        << "CPU reduce_512 doesn't match regular multiplication for inputs: "
+        << a.to_hex() << " * " << b.to_hex();
 
     // Test GPU multiplication (which uses CUDA reduce_512 internally)
     std::vector<FieldElement> gpu_a = {a};
@@ -313,11 +322,12 @@ TEST_F(CudaFieldArithmeticTest, Reduce512Consistency) {
 
     // Compare CPU and GPU results
     EXPECT_EQ(cpu_result, gpu_result[0])
-        << "CPU and GPU 512-bit reduction mismatch for inputs: " << a.to_hex() << " * "
-        << b.to_hex() << "\nCPU result: " << cpu_result.to_hex()
+        << "CPU and GPU 512-bit reduction mismatch for inputs: " << a.to_hex()
+        << " * " << b.to_hex() << "\nCPU result: " << cpu_result.to_hex()
         << "\nGPU result: " << gpu_result[0].to_hex();
   }
 
   std::cout << "Tested " << test_pairs.size()
-            << " multiplication pairs for 512-bit reduction consistency" << std::endl;
+            << " multiplication pairs for 512-bit reduction consistency"
+            << std::endl;
 }

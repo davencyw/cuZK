@@ -8,14 +8,15 @@
 using namespace MerkleTree;
 
 class MerkleTreeTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     // Initialize Poseidon constants before running tests
     Poseidon::PoseidonConstants::init();
     Poseidon::FieldConstants::init();
   }
 
-  std::vector<FieldElement> generate_test_data(size_t count, uint64_t seed = 42) {
+  std::vector<FieldElement> generate_test_data(size_t count,
+                                               uint64_t seed = 42) {
     std::vector<FieldElement> data;
     data.reserve(count);
 
@@ -34,7 +35,7 @@ TEST_F(MerkleTreeTest, BasicConstructionAndOperations) {
   // Test empty tree
   NaryMerkleTree empty_tree;
   EXPECT_EQ(empty_tree.get_leaf_count(), 0);
-  EXPECT_EQ(empty_tree.get_arity(), 2);  // Default arity
+  EXPECT_EQ(empty_tree.get_arity(), 2); // Default arity
 
   // Test tree with data
   auto test_data = generate_test_data(8);
@@ -73,8 +74,8 @@ TEST_F(MerkleTreeTest, ConfigurationTest) {
 
 TEST_F(MerkleTreeTest, InvalidConfiguration) {
   // Test invalid arity values
-  EXPECT_THROW(MerkleTreeConfig(1), std::invalid_argument);   // Too small
-  EXPECT_THROW(MerkleTreeConfig(10), std::invalid_argument);  // Too large
+  EXPECT_THROW(MerkleTreeConfig(1), std::invalid_argument);  // Too small
+  EXPECT_THROW(MerkleTreeConfig(10), std::invalid_argument); // Too large
 }
 
 // Proof generation and verification tests
@@ -109,7 +110,7 @@ TEST_F(MerkleTreeTest, ProofGenerationOutOfBounds) {
 }
 
 TEST_F(MerkleTreeTest, DifferentArityProofs) {
-  auto test_data = generate_test_data(27);  // 3^3, good for arity 3
+  auto test_data = generate_test_data(27); // 3^3, good for arity 3
 
   for (size_t arity = 2; arity <= 4; ++arity) {
     MerkleTreeConfig config(arity);
@@ -140,7 +141,7 @@ TEST_F(MerkleTreeTest, LeafInsertion) {
   tree.insert_leaf(new_leaf);
 
   EXPECT_EQ(tree.get_leaf_count(), original_count + 1);
-  EXPECT_NE(tree.get_root_hash(), original_root);  // Root should change
+  EXPECT_NE(tree.get_root_hash(), original_root); // Root should change
 
   // Verify the new leaf can be proven
   auto proof = tree.generate_proof(original_count);
@@ -214,8 +215,8 @@ TEST_F(MerkleTreeTest, StaticUtilities) {
   EXPECT_EQ(NaryMerkleTree::calculate_tree_height(27, 3), 4);
 
   // Test max leaves calculation
-  EXPECT_EQ(NaryMerkleTree::calculate_max_leaves(3, 2), 4);   // 2^(3-1) = 4
-  EXPECT_EQ(NaryMerkleTree::calculate_max_leaves(4, 3), 27);  // 3^(4-1) = 27
+  EXPECT_EQ(NaryMerkleTree::calculate_max_leaves(3, 2), 4);  // 2^(3-1) = 4
+  EXPECT_EQ(NaryMerkleTree::calculate_max_leaves(4, 3), 27); // 3^(4-1) = 27
 
   // Test empty hash is deterministic
   auto empty1 = NaryMerkleTree::compute_empty_hash(2);
@@ -223,13 +224,13 @@ TEST_F(MerkleTreeTest, StaticUtilities) {
   EXPECT_EQ(empty1, empty2);
 
   auto empty3 = NaryMerkleTree::compute_empty_hash(3);
-  EXPECT_NE(empty1, empty3);  // Different arity should give different hash
+  EXPECT_NE(empty1, empty3); // Different arity should give different hash
 }
 
 // MerkleUtils tests
 TEST_F(MerkleTreeTest, ProofValidation) {
   auto test_data = generate_test_data(8);
-  NaryMerkleTree tree(test_data, MerkleTreeConfig(3));  // Ternary tree
+  NaryMerkleTree tree(test_data, MerkleTreeConfig(3)); // Ternary tree
 
   auto proof = tree.generate_proof(2);
   ASSERT_TRUE(proof.has_value());
@@ -248,7 +249,7 @@ TEST_F(MerkleTreeTest, TreeComparison) {
 
   NaryMerkleTree tree1(test_data);
   NaryMerkleTree tree2(test_data);
-  NaryMerkleTree tree3(test_data, MerkleTreeConfig(3));  // Different arity
+  NaryMerkleTree tree3(test_data, MerkleTreeConfig(3)); // Different arity
 
   EXPECT_TRUE(MerkleUtils::compare_trees(tree1, tree2));
   EXPECT_FALSE(MerkleUtils::compare_trees(tree1, tree3));
@@ -271,7 +272,7 @@ TEST_F(MerkleTreeTest, TestDataGeneration) {
 TEST_F(MerkleTreeTest, LargeTreeTest) {
   // Test with larger dataset
   auto test_data = generate_test_data(1000);
-  NaryMerkleTree tree(test_data, MerkleTreeConfig(4));  // Quaternary tree
+  NaryMerkleTree tree(test_data, MerkleTreeConfig(4)); // Quaternary tree
 
   EXPECT_EQ(tree.get_leaf_count(), 1000);
   EXPECT_EQ(tree.get_arity(), 4);

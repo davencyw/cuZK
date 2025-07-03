@@ -14,18 +14,19 @@ USING_FIELD_CONSTANTS()
 namespace MerkleTree {
 
 // NaryMerkleTree constructors
-NaryMerkleTree::NaryMerkleTree(const MerkleTreeConfig& config) : config_(config), leaf_count_(0) {
+NaryMerkleTree::NaryMerkleTree(const MerkleTreeConfig &config)
+    : config_(config), leaf_count_(0) {
   // Validation is now done in MerkleTreeConfig constructor
 }
 
-NaryMerkleTree::NaryMerkleTree(const std::vector<FieldElement>& leaves,
-                               const MerkleTreeConfig& config)
+NaryMerkleTree::NaryMerkleTree(const std::vector<FieldElement> &leaves,
+                               const MerkleTreeConfig &config)
     : NaryMerkleTree(config) {
   build_tree(leaves);
 }
 
 // Tree building
-void NaryMerkleTree::build_tree(const std::vector<FieldElement>& leaves) {
+void NaryMerkleTree::build_tree(const std::vector<FieldElement> &leaves) {
   if (leaves.empty()) {
     root_ = nullptr;
     leaves_.clear();
@@ -40,8 +41,8 @@ void NaryMerkleTree::build_tree(const std::vector<FieldElement>& leaves) {
   root_ = build_tree_bottom_up(leaves);
 }
 
-std::shared_ptr<MerkleNode> NaryMerkleTree::build_tree_bottom_up(
-    const std::vector<FieldElement>& leaves) {
+std::shared_ptr<MerkleNode>
+NaryMerkleTree::build_tree_bottom_up(const std::vector<FieldElement> &leaves) {
   // Create leaf nodes
   std::vector<std::shared_ptr<MerkleNode>> current_level;
 
@@ -64,14 +65,16 @@ std::shared_ptr<MerkleNode> NaryMerkleTree::build_tree_bottom_up(
   // Build tree bottom-up
   while (current_level.size() > 1) {
     std::vector<std::shared_ptr<MerkleNode>> next_level;
-    next_level.reserve((current_level.size() + config_.arity - 1) / config_.arity);
+    next_level.reserve((current_level.size() + config_.arity - 1) /
+                       config_.arity);
 
     for (size_t i = 0; i < current_level.size(); i += config_.arity) {
       std::vector<FieldElement> child_hashes;
       std::vector<std::shared_ptr<MerkleNode>> children;
 
       // Collect up to arity children
-      for (size_t j = 0; j < config_.arity && i + j < current_level.size(); ++j) {
+      for (size_t j = 0; j < config_.arity && i + j < current_level.size();
+           ++j) {
         children.push_back(current_level[i + j]);
         child_hashes.push_back(current_level[i + j]->hash);
       }
@@ -97,7 +100,7 @@ std::shared_ptr<MerkleNode> NaryMerkleTree::build_tree_bottom_up(
 }
 
 FieldElement NaryMerkleTree::compute_internal_hash(
-    const std::vector<FieldElement>& children_hashes) const {
+    const std::vector<FieldElement> &children_hashes) const {
   if (children_hashes.empty()) {
     return compute_empty_hash(config_.arity);
   }
@@ -107,7 +110,8 @@ FieldElement NaryMerkleTree::compute_internal_hash(
 }
 
 // Proof generation
-std::optional<MerkleProof> NaryMerkleTree::generate_proof(size_t leaf_index) const {
+std::optional<MerkleProof>
+NaryMerkleTree::generate_proof(size_t leaf_index) const {
   if (!root_ || leaf_index >= leaf_count_) {
     return std::nullopt;
   }
@@ -123,7 +127,8 @@ std::optional<MerkleProof> NaryMerkleTree::generate_proof(size_t leaf_index) con
   return std::nullopt;
 }
 
-bool NaryMerkleTree::generate_bottom_up_proof(size_t leaf_index, MerkleProof& proof) const {
+bool NaryMerkleTree::generate_bottom_up_proof(size_t leaf_index,
+                                              MerkleProof &proof) const {
   // Calculate tree height (number of levels from leaf to root)
   size_t padded_size = 1;
   while (padded_size < leaf_count_) {
@@ -154,7 +159,8 @@ bool NaryMerkleTree::generate_bottom_up_proof(size_t leaf_index, MerkleProof& pr
     // Calculate which child to follow at this level
     size_t elements_at_level = padded_size;
     for (size_t i = 0; i < depth; ++i) {
-      elements_at_level = (elements_at_level + config_.arity - 1) / config_.arity;
+      elements_at_level =
+          (elements_at_level + config_.arity - 1) / config_.arity;
     }
 
     size_t elements_per_child = elements_at_level / config_.arity;
@@ -205,9 +211,9 @@ bool NaryMerkleTree::generate_bottom_up_proof(size_t leaf_index, MerkleProof& pr
 }
 
 // Proof verification
-bool NaryMerkleTree::verify_proof(const MerkleProof& proof,
-                                  const FieldElement& leaf_value,
-                                  const FieldElement& root_hash) const {
+bool NaryMerkleTree::verify_proof(const MerkleProof &proof,
+                                  const FieldElement &leaf_value,
+                                  const FieldElement &root_hash) const {
   if (proof.path.size() != proof.indices.size()) {
     return false;
   }
@@ -216,7 +222,7 @@ bool NaryMerkleTree::verify_proof(const MerkleProof& proof,
 
   // Work our way up the tree
   for (size_t level = 0; level < proof.path.size(); ++level) {
-    const auto& siblings = proof.path[level];
+    const auto &siblings = proof.path[level];
     size_t position = proof.indices[level];
 
     if (position >= config_.arity || siblings.size() != config_.arity - 1) {
@@ -249,7 +255,7 @@ bool NaryMerkleTree::verify_proof(const MerkleProof& proof,
 
 // Batch operations
 std::vector<MerkleProof> NaryMerkleTree::generate_batch_proofs(
-    const std::vector<size_t>& indices) const {
+    const std::vector<size_t> &indices) const {
   std::vector<MerkleProof> proofs;
   proofs.reserve(indices.size());
 
@@ -263,9 +269,10 @@ std::vector<MerkleProof> NaryMerkleTree::generate_batch_proofs(
   return proofs;
 }
 
-bool NaryMerkleTree::verify_batch_proofs(const std::vector<MerkleProof>& proofs,
-                                         const std::vector<FieldElement>& leaf_values,
-                                         const FieldElement& root_hash) const {
+bool NaryMerkleTree::verify_batch_proofs(
+    const std::vector<MerkleProof> &proofs,
+    const std::vector<FieldElement> &leaf_values,
+    const FieldElement &root_hash) const {
   if (proofs.size() != leaf_values.size()) {
     return false;
   }
@@ -280,13 +287,13 @@ bool NaryMerkleTree::verify_batch_proofs(const std::vector<MerkleProof>& proofs,
 }
 
 // Tree operations
-void NaryMerkleTree::insert_leaf(const FieldElement& leaf) {
+void NaryMerkleTree::insert_leaf(const FieldElement &leaf) {
   leaves_.push_back(leaf);
   leaf_count_++;
   build_tree(leaves_);
 }
 
-void NaryMerkleTree::update_leaf(size_t index, const FieldElement& new_value) {
+void NaryMerkleTree::update_leaf(size_t index, const FieldElement &new_value) {
   cuZK::ErrorHandling::validate_index(index, leaf_count_, "update_leaf");
 
   leaves_[index] = new_value;
@@ -315,18 +322,20 @@ void NaryMerkleTree::print_tree() const {
     return;
   }
 
-  std::cout << "Merkle Tree (arity=" << config_.arity << ", leaves=" << leaf_count_ << "):\n";
+  std::cout << "Merkle Tree (arity=" << config_.arity
+            << ", leaves=" << leaf_count_ << "):\n";
   print_tree_recursive(root_, 0, "");
 }
 
-void NaryMerkleTree::print_tree_recursive(const std::shared_ptr<MerkleNode>& node,
-                                          size_t level,
-                                          const std::string& prefix) const {
+void NaryMerkleTree::print_tree_recursive(
+    const std::shared_ptr<MerkleNode> &node, size_t level,
+    const std::string &prefix) const {
   if (!node) {
     return;
   }
 
-  std::cout << prefix << "Level " << level << ": " << node->hash.to_hex().substr(0, 16) << "..."
+  std::cout << prefix << "Level " << level << ": "
+            << node->hash.to_hex().substr(0, 16) << "..."
             << (node->is_leaf ? " (leaf)" : " (internal)") << "\n";
 
   for (size_t i = 0; i < node->children.size(); ++i) {
@@ -352,7 +361,9 @@ size_t NaryMerkleTree::calculate_tree_height(size_t leaf_count, size_t arity) {
     return 1;
   }
 
-  return static_cast<size_t>(std::ceil(std::log(leaf_count) / std::log(arity))) + 1;
+  return static_cast<size_t>(
+             std::ceil(std::log(leaf_count) / std::log(arity))) +
+         1;
 }
 
 size_t NaryMerkleTree::calculate_max_leaves(size_t height, size_t arity) {
@@ -362,7 +373,7 @@ size_t NaryMerkleTree::calculate_max_leaves(size_t height, size_t arity) {
 // MerkleUtils namespace implementation
 namespace MerkleUtils {
 
-bool is_valid_proof_structure(const MerkleProof& proof, size_t arity) {
+bool is_valid_proof_structure(const MerkleProof &proof, size_t arity) {
   if (proof.path.size() != proof.indices.size()) {
     return false;
   }
@@ -379,12 +390,14 @@ bool is_valid_proof_structure(const MerkleProof& proof, size_t arity) {
   return true;
 }
 
-bool compare_trees(const NaryMerkleTree& tree1, const NaryMerkleTree& tree2) {
+bool compare_trees(const NaryMerkleTree &tree1, const NaryMerkleTree &tree2) {
   return tree1.get_root_hash() == tree2.get_root_hash() &&
-         tree1.get_leaf_count() == tree2.get_leaf_count() && tree1.get_arity() == tree2.get_arity();
+         tree1.get_leaf_count() == tree2.get_leaf_count() &&
+         tree1.get_arity() == tree2.get_arity();
 }
 
-TreeBenchmarkResult benchmark_tree(size_t leaf_count, size_t arity, size_t num_proofs) {
+TreeBenchmarkResult benchmark_tree(size_t leaf_count, size_t arity,
+                                   size_t num_proofs) {
   TreeBenchmarkResult result = {};
   result.leaf_count = leaf_count;
   result.arity = arity;
@@ -397,7 +410,8 @@ TreeBenchmarkResult benchmark_tree(size_t leaf_count, size_t arity, size_t num_p
   NaryMerkleTree tree(leaves, MerkleTreeConfig(arity));
   auto end = std::chrono::high_resolution_clock::now();
 
-  result.build_time_ms = std::chrono::duration<double, std::milli>(end - start).count();
+  result.build_time_ms =
+      std::chrono::duration<double, std::milli>(end - start).count();
   result.tree_height = tree.get_tree_height();
 
   // Benchmark proof generation
@@ -412,7 +426,8 @@ TreeBenchmarkResult benchmark_tree(size_t leaf_count, size_t arity, size_t num_p
   }
   end = std::chrono::high_resolution_clock::now();
 
-  result.proof_generation_time_ms = std::chrono::duration<double, std::milli>(end - start).count();
+  result.proof_generation_time_ms =
+      std::chrono::duration<double, std::milli>(end - start).count();
 
   // Benchmark proof verification
   auto proof = tree.generate_proof(0);
@@ -444,6 +459,6 @@ std::vector<FieldElement> generate_test_leaves(size_t count, uint64_t seed) {
   return leaves;
 }
 
-}  // namespace MerkleUtils
+} // namespace MerkleUtils
 
-}  // namespace MerkleTree
+} // namespace MerkleTree

@@ -16,28 +16,28 @@ struct FieldElement {
   FieldElement();
   explicit FieldElement(uint64_t value);
   FieldElement(uint64_t v0, uint64_t v1, uint64_t v2, uint64_t v3);
-  FieldElement(const FieldElement& other);
+  FieldElement(const FieldElement &other);
 
   // Assignment operator
-  FieldElement& operator=(const FieldElement& other);
+  FieldElement &operator=(const FieldElement &other);
 
   // Comparison operators
-  bool operator==(const FieldElement& other) const;
-  bool operator!=(const FieldElement& other) const;
-  bool operator<(const FieldElement& other) const;
+  bool operator==(const FieldElement &other) const;
+  bool operator!=(const FieldElement &other) const;
+  bool operator<(const FieldElement &other) const;
 
   // Arithmetic operations
-  FieldElement operator+(const FieldElement& other) const;
-  FieldElement operator-(const FieldElement& other) const;
-  FieldElement operator*(const FieldElement& other) const;
-  FieldElement& operator+=(const FieldElement& other);
-  FieldElement& operator-=(const FieldElement& other);
-  FieldElement& operator*=(const FieldElement& other);
+  FieldElement operator+(const FieldElement &other) const;
+  FieldElement operator-(const FieldElement &other) const;
+  FieldElement operator*(const FieldElement &other) const;
+  FieldElement &operator+=(const FieldElement &other);
+  FieldElement &operator-=(const FieldElement &other);
+  FieldElement &operator*=(const FieldElement &other);
 
   // Utility functions
   std::string to_hex() const;
   std::string to_dec() const;
-  static FieldElement from_hex(const std::string& hex);
+  static FieldElement from_hex(const std::string &hex);
   static FieldElement random();
   bool is_zero() const;
   void set_zero();
@@ -46,25 +46,28 @@ struct FieldElement {
 // Field arithmetic operations
 namespace FieldArithmetic {
 // Basic operations
-void add(const FieldElement& a, const FieldElement& b, FieldElement& result);
-void subtract(const FieldElement& a, const FieldElement& b, FieldElement& result);
-void multiply(const FieldElement& a, const FieldElement& b, FieldElement& result);
-void square(const FieldElement& a, FieldElement& result);
+void add(const FieldElement &a, const FieldElement &b, FieldElement &result);
+void subtract(const FieldElement &a, const FieldElement &b,
+              FieldElement &result);
+void multiply(const FieldElement &a, const FieldElement &b,
+              FieldElement &result);
+void square(const FieldElement &a, FieldElement &result);
 
 // Modular operations
-void reduce(FieldElement& a);
+void reduce(FieldElement &a);
 
 // Power operations
-void power5(const FieldElement& a,
-            FieldElement& result);  // Optimized x^5 for S-box
+void power5(const FieldElement &a,
+            FieldElement &result); // Optimized x^5 for S-box
 
 // Random number generation
 FieldElement random();
 
 // Internal helper functions
-void subtract_internal(const FieldElement& a, const FieldElement& b, FieldElement& result);
-void reduce_512(const uint64_t product[8], FieldElement& result);
-}  // namespace FieldArithmetic
+void subtract_internal(const FieldElement &a, const FieldElement &b,
+                       FieldElement &result);
+void reduce_512(const uint64_t product[8], FieldElement &result);
+} // namespace FieldArithmetic
 
 // Constants for the prime field
 namespace FieldConstants {
@@ -76,6 +79,6 @@ extern const FieldElement ONE;
 extern const FieldElement TWO;
 
 void init();
-}  // namespace FieldConstants
+} // namespace FieldConstants
 
-}  // namespace Poseidon
+} // namespace Poseidon
