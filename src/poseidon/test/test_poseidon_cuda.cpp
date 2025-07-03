@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "poseidon.hpp"
-#include "poseidon_cuda.cuh"
+#include "../cuda/poseidon_cuda.cuh"
 
 using namespace Poseidon;
 
@@ -23,58 +23,8 @@ protected:
 TEST_F(PoseidonCUDATest, InitializationTest) {
   // Test that initialization works
   EXPECT_TRUE(PoseidonCUDA::CudaPoseidonHash::initialize());
-
-  // Test performance info
-  PoseidonCUDA::CudaPoseidonHash::print_performance_info();
 }
 
-TEST_F(PoseidonCUDATest, SingleHashConsistencyTest) {
-  // Generate test inputs
-  std::vector<FieldElement> test_inputs = {
-      FieldElement(0),        FieldElement(1),
-      FieldElement(42),       FieldElement(0x123456789ABCDEFULL),
-      FieldElement::random(), FieldElement::random()};
-
-  for (const auto &input : test_inputs) {
-    // Compute hash on CPU
-    FieldElement cpu_result = PoseidonHash::hash_single(input);
-
-    // Compute hash on GPU
-    FieldElement gpu_result;
-    ASSERT_TRUE(
-        PoseidonCUDA::CudaPoseidonHash::gpu_hash_single(input, gpu_result));
-
-    // Compare results
-    EXPECT_EQ(cpu_result, gpu_result)
-        << "CPU and GPU results differ for input: " << input.to_hex();
-  }
-}
-
-TEST_F(PoseidonCUDATest, PairHashConsistencyTest) {
-  // Generate test input pairs
-  std::vector<std::pair<FieldElement, FieldElement>> test_pairs = {
-      {FieldElement(0), FieldElement(0)},
-      {FieldElement(1), FieldElement(0)},
-      {FieldElement(0), FieldElement(1)},
-      {FieldElement(42), FieldElement(123)},
-      {FieldElement::random(), FieldElement::random()},
-      {FieldElement::random(), FieldElement::random()}};
-
-  for (const auto &pair : test_pairs) {
-    // Compute hash on CPU
-    FieldElement cpu_result = PoseidonHash::hash_pair(pair.first, pair.second);
-
-    // Compute hash on GPU
-    FieldElement gpu_result;
-    ASSERT_TRUE(PoseidonCUDA::CudaPoseidonHash::gpu_hash_pair(
-        pair.first, pair.second, gpu_result));
-
-    // Compare results
-    EXPECT_EQ(cpu_result, gpu_result)
-        << "CPU and GPU results differ for pair: (" << pair.first.to_hex()
-        << ", " << pair.second.to_hex() << ")";
-  }
-}
 
 TEST_F(PoseidonCUDATest, BatchSingleHashTest) {
   const size_t batch_size = 100;
@@ -232,10 +182,12 @@ TEST_F(PoseidonCUDATest, DeterministicTest) {
   // Run the same hash multiple times
   std::vector<FieldElement> results;
   for (int i = 0; i < 5; ++i) {
-    FieldElement result;
+    std::vector<FieldElement> single_input = {test_input};
+    std::vector<FieldElement> single_result;
     ASSERT_TRUE(
-        PoseidonCUDA::CudaPoseidonHash::gpu_hash_single(test_input, result));
-    results.push_back(result);
+        PoseidonCUDA::CudaPoseidonHash::batch_hash_single(single_input, single_result));
+    ASSERT_EQ(single_result.size(), 1);
+    results.push_back(single_result[0]);
   }
 
   // All results should be identical

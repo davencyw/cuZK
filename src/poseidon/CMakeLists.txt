@@ -13,9 +13,9 @@ target_include_directories(poseidon PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # Create optional CUDA extension library
 if(CUDA_AVAILABLE)
     set(POSEIDON_CUDA_SOURCES
-        cuda_field_element.cu
-        field_arithmetic_cuda.cu
-        poseidon_cuda.cu
+        cuda/cuda_field_element.cu
+        cuda/field_arithmetic_cuda.cu
+        cuda/poseidon_cuda.cu
     )
     
     add_library(poseidon_cuda ${POSEIDON_CUDA_SOURCES})

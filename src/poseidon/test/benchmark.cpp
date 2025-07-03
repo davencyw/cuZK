@@ -5,7 +5,7 @@
 #include <chrono>
 
 #ifdef CUDA_ENABLED
-#include "poseidon_cuda.cuh"
+#include "../cuda/poseidon_cuda.cuh"
 #endif
 
 namespace PoseidonBenchmark {

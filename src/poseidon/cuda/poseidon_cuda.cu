@@ -417,31 +417,6 @@ bool CudaPoseidonHash::batch_hash_pairs(const std::vector<FieldElement>& left_in
     return true;
 }
 
-bool CudaPoseidonHash::gpu_hash_single(const FieldElement& input, FieldElement& output) {
-    std::vector<FieldElement> inputs = {input};
-    std::vector<FieldElement> outputs;
-    
-    bool success = batch_hash_single(inputs, outputs);
-    if (success && !outputs.empty()) {
-        output = outputs[0];
-    }
-    
-    return success;
-}
-
-bool CudaPoseidonHash::gpu_hash_pair(const FieldElement& left, const FieldElement& right, FieldElement& output) {
-    std::vector<FieldElement> left_inputs = {left};
-    std::vector<FieldElement> right_inputs = {right};
-    std::vector<FieldElement> outputs;
-    
-    bool success = batch_hash_pairs(left_inputs, right_inputs, outputs);
-    if (success && !outputs.empty()) {
-        output = outputs[0];
-    }
-    
-    return success;
-}
-
 bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement, PoseidonParams::STATE_SIZE>>& states) {
     if (!initialized_) {
         std::cerr << "CudaPoseidonHash not initialized" << std::endl;
@@ -512,24 +487,6 @@ size_t CudaPoseidonHash::get_optimal_batch_size() {
 
 size_t CudaPoseidonHash::get_max_batch_size() {
     return max_batch_size_;
-}
-
-void CudaPoseidonHash::print_performance_info() {
-    if (!initialized_) {
-        std::cout << "CudaPoseidonHash not initialized" << std::endl;
-        return;
-    }
-    
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    
-    std::cout << "CUDA Poseidon Performance Info:" << std::endl;
-    std::cout << "  Device: " << prop.name << std::endl;
-    std::cout << "  Optimal batch size: " << optimal_batch_size_ << std::endl;
-    std::cout << "  Maximum batch size: " << max_batch_size_ << std::endl;
-    std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
-    std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
-    std::cout << "  Global memory: " << prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
 }
 
 // Memory management functions for FieldElement - kept for existing kernels that still use FieldElement

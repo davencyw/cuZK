@@ -1,6 +1,6 @@
 #include "field_arithmetic_cuda.cuh"
 #include "cuda_field_element.cuh"
-#include "field_arithmetic.hpp"
+#include "../field_arithmetic.hpp"
 #include "../common/error_handling.hpp"
 #include <iostream>
 #include <chrono>

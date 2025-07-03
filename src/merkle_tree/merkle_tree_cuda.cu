@@ -1,8 +1,8 @@
 #include "merkle_tree_cuda.cuh"
 #include "../common/error_handling.hpp"
 #include "../common/namespace_utils.hpp"
-#include "../poseidon/poseidon_cuda.cuh"
-#include "../poseidon/cuda_field_element.cuh"
+#include "../poseidon/cuda/poseidon_cuda.cuh"
+#include "../poseidon/cuda/cuda_field_element.cuh"
 #include <iostream>
 #include <chrono>
 #include <algorithm>

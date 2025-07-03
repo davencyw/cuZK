@@ -1,8 +1,8 @@
 #pragma once
 
 #include "merkle_tree.hpp"
-#include "../poseidon/poseidon_cuda.cuh"
-#include "../poseidon/cuda_field_element.cuh"
+#include "../poseidon/cuda/poseidon_cuda.cuh"
+#include "../poseidon/cuda/cuda_field_element.cuh"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <vector>

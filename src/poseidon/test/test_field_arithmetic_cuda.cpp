@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "field_arithmetic.hpp"
-#include "field_arithmetic_cuda.cuh"
+#include "../cuda/field_arithmetic_cuda.cuh"
 
 using namespace Poseidon;
 using CudaFieldArithmetic = Poseidon::CudaFieldOps::CudaFieldArithmetic;
