@@ -45,6 +45,7 @@ endif()
 set(POSEIDON_CPU_TEST_SOURCES
     test/test_poseidon.cpp
     test/test_field_arithmetic.cpp
+    test/test_field_accumulation.cpp
 )
 
 add_executable(poseidon_tests ${POSEIDON_CPU_TEST_SOURCES})
