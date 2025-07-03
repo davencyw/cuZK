@@ -88,13 +88,34 @@ endif()
 if(CUDA_AVAILABLE)
     add_custom_target(run_all_benchmarks
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "[Bb]enchmark"
-        DEPENDS merkle_tree_tests merkle_tree_cuda_benchmark_tests
+        DEPENDS merkle_tree_tests merkle_tree_cuda_benchmark_tests poseidon_benchmark
         COMMENT "Running all benchmarks (CPU and CUDA)"
+    )
+    
+    # Add specific poseidon benchmark target
+    add_custom_target(run_poseidon_benchmark
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/src/poseidon/poseidon_benchmark
+        DEPENDS poseidon_benchmark
+        COMMENT "Running Poseidon performance benchmarks"
     )
 else()
     add_custom_target(run_all_benchmarks
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "[Bb]enchmark"
-        DEPENDS merkle_tree_tests
+        DEPENDS merkle_tree_tests poseidon_benchmark
         COMMENT "Running all benchmarks (CPU only)"
     )
+    
+    # Add specific poseidon benchmark target
+    add_custom_target(run_poseidon_benchmark
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/src/poseidon/poseidon_benchmark
+        DEPENDS poseidon_benchmark
+        COMMENT "Running Poseidon performance benchmarks"
+    )
 endif()
+
+# Create a convenient alias 'benchmark' for the poseidon benchmark
+add_custom_target(benchmark
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/src/poseidon/poseidon_benchmark
+    DEPENDS poseidon_benchmark
+    COMMENT "Running Poseidon benchmarks (alias for run_poseidon_benchmark)"
+)

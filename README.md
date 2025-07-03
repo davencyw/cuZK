@@ -70,6 +70,9 @@ make test-cuda
 
 # Run benchmark tests
 make benchmark
+
+# Run Poseidon performance benchmark
+./run_poseidon_benchmark.sh
 ```
 
 ## Usage Examples

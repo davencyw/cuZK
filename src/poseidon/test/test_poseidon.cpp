@@ -162,7 +162,7 @@ TEST_F(PoseidonTest, SpongeFunction) {
   std::vector<FieldElement> inputs = {FieldElement(10), FieldElement(20),
                                       FieldElement(30)};
 
-  FieldElement sponge_hash = PoseidonHash::sponge(inputs);
+  FieldElement sponge_hash = PoseidonHash::sponge(inputs, FieldElement(3));
   FieldElement multiple_hash = PoseidonHash::hash_multiple(inputs);
 
   // These should be the same since hash_multiple uses sponge

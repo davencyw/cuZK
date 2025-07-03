@@ -108,6 +108,29 @@ else()
     )
 endif()
 
+# Create benchmark executable
+add_executable(poseidon_benchmark
+    test/benchmark.cpp
+)
+
+target_link_libraries(poseidon_benchmark
+    poseidon
+    Threads::Threads
+)
+
+# Add CUDA support to benchmark if available
+if(CUDA_AVAILABLE)
+    target_link_libraries(poseidon_benchmark poseidon_cuda)
+    target_compile_definitions(poseidon_benchmark PRIVATE CUDA_ENABLED)
+endif()
+
+# Add custom target for running benchmarks
+add_custom_target(benchmark_poseidon
+    COMMAND $<TARGET_FILE:poseidon_benchmark>
+    DEPENDS poseidon_benchmark
+    COMMENT "Running Poseidon performance benchmarks"
+)
+
 # Maintain backward compatibility
 add_custom_target(test_poseidon 
     DEPENDS test_poseidon_all
