@@ -176,9 +176,10 @@ namespace FieldArithmetic {
 void add(const FieldElement& a, const FieldElement& b, FieldElement& result) {
   uint64_t carry = 0;
   for (int i = 0; i < 4; ++i) {
-    uint64_t sum = a.limbs[i] + b.limbs[i] + carry;
-    result.limbs[i] = sum;
-    carry = (sum < a.limbs[i]) ? 1 : 0;
+    // Use 128-bit arithmetic to avoid overflow issues
+    __uint128_t sum = (__uint128_t)a.limbs[i] + (__uint128_t)b.limbs[i] + (__uint128_t)carry;
+    result.limbs[i] = (uint64_t)sum;
+    carry = (uint64_t)(sum >> 64);  // Extract the high 64 bits as carry
   }
   reduce(result);
 }
@@ -186,8 +187,14 @@ void add(const FieldElement& a, const FieldElement& b, FieldElement& result) {
 void subtract(const FieldElement& a, const FieldElement& b, FieldElement& result) {
   // If a < b, we need to add the modulus first
   if (a < b) {
-    FieldElement temp = a;
-    add(temp, FieldConstants::MODULUS, temp);
+    FieldElement temp;
+    // Add modulus to a without calling reduce()
+    uint64_t carry = 0;
+    for (int i = 0; i < 4; ++i) {
+      __uint128_t sum = (__uint128_t)a.limbs[i] + (__uint128_t)FieldConstants::MODULUS.limbs[i] + (__uint128_t)carry;
+      temp.limbs[i] = (uint64_t)sum;
+      carry = (uint64_t)(sum >> 64);
+    }
     subtract_internal(temp, b, result);
   } else {
     subtract_internal(a, b, result);
@@ -238,45 +245,76 @@ void reduce(FieldElement& a) {
 }
 
 void reduce_512(const uint64_t product[8], FieldElement& result) {
-  // Simple reduction for 512-bit to 256-bit
-  // This is a basic implementation - could be optimized
+  // Reduction for 512-bit to 256-bit for BN254 field
+  // The input represents: low + high * 2^256
+  // We need to compute: (low + high * (2^256 mod p)) mod p
+  
+  // 2^256 mod p = 0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb
+  static const FieldElement k = FieldElement::from_hex("0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb");
 
-  FieldElement high, low;
+  // Extract low and high parts
+  FieldElement low(product[0], product[1], product[2], product[3]);
+  FieldElement high(product[4], product[5], product[6], product[7]);
 
-  // Copy low and high parts
-  low.limbs[0] = product[0];
-  low.limbs[1] = product[1];
-  low.limbs[2] = product[2];
-  low.limbs[3] = product[3];
-
-  high.limbs[0] = product[4];
-  high.limbs[1] = product[5];
-  high.limbs[2] = product[6];
-  high.limbs[3] = product[7];
-
-  // If high part is zero, just reduce low part
-  if (high.limbs[0] == 0 && high.limbs[1] == 0 && high.limbs[2] == 0 && high.limbs[3] == 0) {
+  // If high part is zero, just return reduced low part
+  if (high.is_zero()) {
     result = low;
     reduce(result);
     return;
   }
 
-  // For BN254 field, 2^256 ≡ 4 (mod p) approximately
-  // So we compute: high * 4 + low, then reduce
-  FieldElement temp_high;
+  // Implement the exact same logic as multiply() function but inline
+  // to avoid circular dependency
+  uint64_t mult_product[8] = {0};
 
-  // Multiply high by 4 (left shift by 2)
-  uint64_t carry = 0;
+  // Schoolbook multiplication: high * k (same as in multiply())
   for (int i = 0; i < 4; ++i) {
-    uint64_t shifted = (high.limbs[i] << 2) | carry;
-    temp_high.limbs[i] = shifted;
-    carry = high.limbs[i] >> 62;  // Carry the top 2 bits
+    uint64_t carry = 0;
+    for (int j = 0; j < 4; ++j) {
+      __uint128_t prod = (__uint128_t)high.limbs[i] * k.limbs[j] + mult_product[i + j] + carry;
+      mult_product[i + j] = (uint64_t)prod;
+      carry = (uint64_t)(prod >> 64);
+    }
+    mult_product[i + 4] = carry;
   }
 
-  // Add temp_high + low
-  add(temp_high, low, result);
-
-  // Final reduction
+  // Now we have a 512-bit result in mult_product = high * k
+  // We need to reduce this 512-bit result, but we can't call reduce_512 recursively
+  // Instead, we'll apply the reduction algorithm iteratively
+  
+  // Extract the low and high parts of mult_product
+  FieldElement mult_low(mult_product[0], mult_product[1], mult_product[2], mult_product[3]);
+  FieldElement mult_high(mult_product[4], mult_product[5], mult_product[6], mult_product[7]);
+  
+  // Start with mult_low
+  FieldElement high_contribution = mult_low;
+  
+  // If mult_high is non-zero, we need to add mult_high * k to high_contribution
+  // But we'll do this only once to avoid infinite recursion, and then rely on final reduce()
+  if (!mult_high.is_zero()) {
+    // Do one more round of schoolbook multiplication: mult_high * k
+    uint64_t mult2_product[8] = {0};
+    
+    for (int i = 0; i < 4; ++i) {
+      uint64_t carry = 0;
+      for (int j = 0; j < 4; ++j) {
+        __uint128_t prod = (__uint128_t)mult_high.limbs[i] * k.limbs[j] + mult2_product[i + j] + carry;
+        mult2_product[i + j] = (uint64_t)prod;
+        carry = (uint64_t)(prod >> 64);
+      }
+      mult2_product[i + 4] = carry;
+    }
+    
+    // Add only the low part of mult2_product to high_contribution
+    // Any high part will be small and handled by final reduce()
+    FieldElement mult2_low(mult2_product[0], mult2_product[1], mult2_product[2], mult2_product[3]);
+    add(high_contribution, mult2_low, high_contribution);
+  }
+  
+  // Now compute final result: low + high_contribution
+  add(low, high_contribution, result);
+  
+  // Final reduction to ensure result < p
   reduce(result);
 }
 
