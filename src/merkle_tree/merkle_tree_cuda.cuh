@@ -115,7 +115,6 @@ struct CudaMerkleTreeStats {
     size_t proofs_per_second;
     size_t total_trees;
     size_t total_proofs;
-    double gpu_utilization_percent;
     double speedup_vs_cpu;
     size_t leaf_count;
     size_t tree_height;

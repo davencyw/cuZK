@@ -23,6 +23,7 @@ using CudaFieldElement = Poseidon::CudaFieldElement;
 
 // Static members for device memory management
 static bool cuda_initialized = false;
+static std::unique_ptr<Poseidon::PoseidonCUDA::CudaPoseidonHash> global_poseidon_hasher;
 
 // Use standardized CUDA error handling - macros are imported via include
 using cuZK::ErrorHandling::cuda_sync_check;
@@ -549,9 +550,11 @@ FieldElement CudaNaryMerkleTree::compute_empty_hash(size_t arity) const {
 bool CudaNaryMerkleTree::initialize_cuda() {
     if (cuda_initialized) return true;
     
-    // Initialize CUDA Poseidon
-    if (!Poseidon::PoseidonCUDA::CudaPoseidonHash::initialize()) {
+    // Create CUDA Poseidon instance
+    global_poseidon_hasher = std::make_unique<Poseidon::PoseidonCUDA::CudaPoseidonHash>();
+    if (!global_poseidon_hasher->is_initialized()) {
         std::cerr << "Failed to initialize CUDA Poseidon" << std::endl;
+        global_poseidon_hasher.reset();
         return false;
     }
     
@@ -561,17 +564,23 @@ bool CudaNaryMerkleTree::initialize_cuda() {
 
 void CudaNaryMerkleTree::cleanup_cuda() {
     if (cuda_initialized) {
-        Poseidon::PoseidonCUDA::CudaPoseidonHash::cleanup();
+        global_poseidon_hasher.reset(); // Destructor handles cleanup automatically
         cuda_initialized = false;
     }
 }
 
 size_t CudaNaryMerkleTree::get_optimal_batch_size() {
-    return Poseidon::PoseidonCUDA::CudaPoseidonHash::get_optimal_batch_size();
+    if (!cuda_initialized || !global_poseidon_hasher) {
+        return 1024; // Default fallback
+    }
+    return global_poseidon_hasher->get_optimal_batch_size();
 }
 
 size_t CudaNaryMerkleTree::get_max_batch_size() {
-    return Poseidon::PoseidonCUDA::CudaPoseidonHash::get_max_batch_size();
+    if (!cuda_initialized || !global_poseidon_hasher) {
+        return 65536; // Default fallback
+    }
+    return global_poseidon_hasher->get_max_batch_size();
 }
 
 // Utility namespace implementations

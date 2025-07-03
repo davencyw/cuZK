@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Script to build and run Poseidon Hash CPU vs GPU benchmarks
-# Usage: ./run_poseidon_benchmark.sh [quick|full|cpu-only|gpu-only]
-
 set -e
 
 # Colors for output
@@ -30,7 +27,7 @@ print_error() {
 }
 
 # Default mode
-MODE=${1:-quick}
+MODE=${1:-full}
 
 print_status "Starting Poseidon Hash Benchmark Suite"
 print_status "Mode: $MODE"
@@ -72,25 +69,6 @@ echo "=========================================="
 echo ""
 
 case $MODE in
-    "quick")
-        print_status "Running quick performance check..."
-        echo ""
-        
-        # Run CPU benchmark tests
-        print_status "=== CPU BENCHMARK TESTS ==="
-        ./src/poseidon/poseidon_tests --gtest_filter="*Benchmark*" || true
-        
-        if [ "$CUDA_AVAILABLE" = true ]; then
-            echo ""
-            print_status "=== GPU BENCHMARK TESTS ==="
-            ./src/poseidon/poseidon_cuda_tests --gtest_filter="*Performance*" || true
-        fi
-        
-        echo ""
-        print_status "=== QUICK PERFORMANCE BENCHMARK ==="
-        ./src/poseidon/poseidon_benchmark || true
-        ;;
-        
     "full")
         print_status "Running comprehensive benchmarks..."
         echo ""
@@ -109,43 +87,10 @@ case $MODE in
         print_status "=== COMPREHENSIVE PERFORMANCE BENCHMARK ==="
         ./src/poseidon/poseidon_benchmark || true
         ;;
-        
-    "cpu-only")
-        print_status "Running CPU-only benchmarks..."
-        echo ""
-        
-        print_status "=== CPU BENCHMARK TESTS ==="
-        ./src/poseidon/poseidon_tests --gtest_filter="*Benchmark*" || true
-        
-        echo ""
-        print_status "=== CPU PERFORMANCE BENCHMARK ==="
-        ./src/poseidon/poseidon_benchmark || true
-        ;;
-        
-    "gpu-only")
-        if [ "$CUDA_AVAILABLE" = true ]; then
-            print_status "Running GPU-only benchmarks..."
-            echo ""
-            
-            print_status "=== GPU BENCHMARK TESTS ==="
-            ./src/poseidon/poseidon_cuda_tests --gtest_filter="*Performance*" || true
-            
-            echo ""
-            print_status "=== GPU PERFORMANCE BENCHMARK ==="
-            ./src/poseidon/poseidon_benchmark || true
-        else
-            print_error "CUDA not available - cannot run GPU-only benchmarks"
-            exit 1
-        fi
-        ;;
-        
     *)
         print_error "Unknown mode: $MODE"
         echo "Available modes:"
-        echo "  quick    - Run quick performance check"
         echo "  full     - Run comprehensive benchmarks"
-        echo "  cpu-only - Run only CPU benchmarks"
-        echo "  gpu-only - Run only GPU benchmarks"
         exit 1
         ;;
 esac
@@ -153,12 +98,4 @@ esac
 echo ""
 print_success "Benchmark suite completed!"
 
-if [ "$CUDA_AVAILABLE" = true ]; then
-    echo ""
-    print_status "You can also run specific benchmark categories:"
-    echo "  CPU tests only:        ./src/poseidon/poseidon_tests --gtest_filter='*Benchmark*'"
-    echo "  GPU tests only:        ./src/poseidon/poseidon_cuda_tests --gtest_filter='*Performance*'"
-    echo "  Performance comparison: ./src/poseidon/poseidon_benchmark"
-    echo "  All poseidon tests:     make test_poseidon_all"
-fi
 

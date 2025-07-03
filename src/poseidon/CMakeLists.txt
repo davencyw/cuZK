@@ -16,6 +16,8 @@ if(CUDA_AVAILABLE)
         cuda/cuda_field_element.cu
         cuda/field_arithmetic_cuda.cu
         cuda/poseidon_cuda.cu
+        cuda/poseidon_cuda_optimized.cu
+        cuda/poseidon_cuda_benchmarks.cpp
     )
     
     add_library(poseidon_cuda ${POSEIDON_CUDA_SOURCES})
@@ -88,7 +90,7 @@ endif()
 
 # Add custom target for running just CPU tests
 add_custom_target(test_poseidon_cpu
-    COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon_tests"
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/poseidon_tests
     DEPENDS poseidon_tests
     COMMENT "Running Poseidon CPU tests"
 )
@@ -96,13 +98,13 @@ add_custom_target(test_poseidon_cpu
 # Add custom target for running all poseidon tests
 if(CUDA_AVAILABLE)
     add_custom_target(test_poseidon_all
-        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon.*"
+        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "PoseidonTest|FieldArithmeticTest|FieldAccumulationTest|poseidon_cuda_tests"
         DEPENDS poseidon_tests poseidon_cuda_tests
         COMMENT "Running all Poseidon tests (CPU and CUDA)"
     )
 else()
     add_custom_target(test_poseidon_all
-        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon_tests"
+        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "PoseidonTest|FieldArithmeticTest|FieldAccumulationTest"
         DEPENDS poseidon_tests
         COMMENT "Running all Poseidon tests (CPU only)"
     )

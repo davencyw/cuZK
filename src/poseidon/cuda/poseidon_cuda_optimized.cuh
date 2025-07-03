@@ -10,21 +10,24 @@
 
 namespace Poseidon {
 
-// CUDA-specific Poseidon operations
-namespace PoseidonCUDA {
+// CUDA-specific Poseidon operations - Optimized version
+namespace PoseidonCUDAOptimized {
 
 // Import CUDA field operations for device functions
 using namespace Poseidon::CudaFieldOps;
 
-// Device hash functions for merkle trees - implemented in .cu file
-__device__ CudaFieldElement device_hash_n(const CudaFieldElement* children, size_t arity);
+// Import the interface from the PoseidonCUDA namespace
+using Poseidon::PoseidonCUDA::IPoseidonCudaHash;
 
-// Host interface for CUDA Poseidon operations
-class CudaPoseidonHash : public IPoseidonCudaHash {
+// Device hash functions for merkle trees - implemented in .cu file
+__device__ CudaFieldElement device_hash_n_optimized(const CudaFieldElement* children, size_t arity);
+
+// Host interface for CUDA Poseidon operations - Optimized version
+class CudaPoseidonHashOptimized : public IPoseidonCudaHash {
 public:
     // Constructor and destructor handle RAII
-    CudaPoseidonHash();
-    ~CudaPoseidonHash() override;
+    CudaPoseidonHashOptimized();
+    ~CudaPoseidonHashOptimized() override;
     
     // Interface implementation
     bool batch_hash_single(const std::vector<FieldElement>& inputs, 
@@ -45,10 +48,6 @@ private:
     size_t optimal_batch_size_;
     size_t max_batch_size_;
     
-    // Device constants
-    FieldElement* d_round_constants_;
-    FieldElement* d_mds_matrix_;
-    
     // Device memory management
     FieldElement* allocate_device_memory(size_t count);
     void free_device_memory(FieldElement* ptr);
@@ -58,5 +57,5 @@ private:
     
 };
 
-} // namespace PoseidonCUDA
+} // namespace PoseidonCUDAOptimized
 } // namespace Poseidon 

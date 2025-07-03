@@ -86,8 +86,6 @@ struct CudaHashingStats {
     double avg_time_per_operation_ns;
     size_t operations_per_second;
     size_t total_operations;
-    size_t gpu_memory_used_mb;
-    double gpu_utilization_percent;
 };
 
 CudaHashingStats benchmark_cuda_field_operations(size_t num_operations, size_t batch_size = 1024);

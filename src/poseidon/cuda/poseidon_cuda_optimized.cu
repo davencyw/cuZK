@@ -1,9 +1,9 @@
-#include "poseidon_cuda.cuh"
+#include "poseidon_cuda_optimized.cuh"
 #include "field_arithmetic_cuda.cuh"  // Still needed for class methods like initialize()
 #include "cuda_field_element.cuh"
 #include "poseidon_interface_cuda.hpp"
 #include "poseidon_cuda_benchmarks.hpp"
-#include "../common/error_handling.hpp"
+#include "../../common/error_handling.hpp"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <chrono>
@@ -12,33 +12,35 @@
 using namespace Poseidon::CudaFieldOps;  // For CudaFieldArithmetic class methods and CudaFieldElement arithmetic functions
 
 namespace Poseidon {
-namespace PoseidonCUDA {
+namespace PoseidonCUDAOptimized {
 
 // Use standardized CUDA error handling - these are macros, imported via include
 using cuZK::ErrorHandling::cuda_sync_check;
 
-// Device pointers for constants (initialized at runtime)
-__device__ FieldElement* d_poseidon_round_constants_ptr;
-__device__ FieldElement* d_poseidon_mds_matrix_ptr;
+// Device constants (initialized at runtime via cudaMemcpyToSymbol) - optimized version
+// Use plain uint64_t arrays to avoid dynamic initialization issues
+__constant__ uint64_t d_poseidon_round_constants_optimized[64 * 3 * 4]; // 64 rounds * 3 states * 4 limbs
+__constant__ uint64_t d_poseidon_mds_matrix_optimized[3 * 3 * 4]; // 3x3 matrix * 4 limbs
 
 // ================================
-// Device Functions for Poseidon Operations
+// Device Functions for Poseidon Operations - Optimized
 // ================================
 
 __device__ void cuda_add_round_constants(CudaFieldElement state[PoseidonParams::STATE_SIZE], size_t round) {
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         size_t const_idx = round * PoseidonParams::STATE_SIZE + i;
+        size_t limb_offset = const_idx * 4; // 4 limbs per FieldElement
         CudaFieldElement round_const = CudaFieldElement(
-            d_poseidon_round_constants_ptr[const_idx].limbs[0],
-            d_poseidon_round_constants_ptr[const_idx].limbs[1],
-            d_poseidon_round_constants_ptr[const_idx].limbs[2],
-            d_poseidon_round_constants_ptr[const_idx].limbs[3]
+            d_poseidon_round_constants_optimized[limb_offset + 0],
+            d_poseidon_round_constants_optimized[limb_offset + 1],
+            d_poseidon_round_constants_optimized[limb_offset + 2],
+            d_poseidon_round_constants_optimized[limb_offset + 3]
         );
         cuda_add(state[i], round_const, state[i]);
     }
 }
 
-__device__ void cuda_apply_sbox(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
+__device__ void cuda_apply_sbox_optimized(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         cuda_power5(state[i], state[i]);
     }
@@ -50,49 +52,52 @@ __device__ void cuda_apply_partial_sbox(CudaFieldElement state[PoseidonParams::S
 }
 
 __device__ void cuda_apply_mds_matrix(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
-    // Store original state and initialize new state
+    // Store original state in local memory (registers)
     CudaFieldElement original_state[PoseidonParams::STATE_SIZE];
-    CudaFieldElement new_state[PoseidonParams::STATE_SIZE];
-    
-    // Copy original state and initialize new state to zero
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         original_state[i] = state[i];
-        new_state[i].set_zero();
     }
     
-    // Compute MDS matrix multiplication: new_state[i] = sum(MDS[i][j] * original_state[j])
+    // Compute MDS matrix multiplication directly into state array
+    // new_state[i] = sum(MDS[i][j] * original_state[j])
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
+        // Use local accumulator to avoid repeated memory access
+        CudaFieldElement accumulator;
+        accumulator.set_zero();
+        
+        // Accumulate: accumulator += MDS[i][j] * original_state[j]
         for (size_t j = 0; j < PoseidonParams::STATE_SIZE; ++j) {
             size_t matrix_idx = i * PoseidonParams::STATE_SIZE + j;
+            size_t limb_offset = matrix_idx * 4; // 4 limbs per FieldElement
+            
+            // Load MDS matrix element directly from constant memory
             CudaFieldElement mds_element = CudaFieldElement(
-                d_poseidon_mds_matrix_ptr[matrix_idx].limbs[0],
-                d_poseidon_mds_matrix_ptr[matrix_idx].limbs[1],
-                d_poseidon_mds_matrix_ptr[matrix_idx].limbs[2],
-                d_poseidon_mds_matrix_ptr[matrix_idx].limbs[3]
+                d_poseidon_mds_matrix_optimized[limb_offset + 0],
+                d_poseidon_mds_matrix_optimized[limb_offset + 1],
+                d_poseidon_mds_matrix_optimized[limb_offset + 2],
+                d_poseidon_mds_matrix_optimized[limb_offset + 3]
             );
             
             // Multiply: product = MDS[i][j] * original_state[j]
             CudaFieldElement product;
             cuda_multiply(mds_element, original_state[j], product);
             
-            // Add to accumulator: new_state[i] += product
-            cuda_add(new_state[i], product, new_state[i]);
+            // Add to local accumulator: accumulator += product
+            cuda_add(accumulator, product, accumulator);
         }
-    }
-    
-    // Copy final result back to state
-    for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
-        state[i] = new_state[i];
+        
+        // Write final result to state[i] only once
+        state[i] = accumulator;
     }
 }
 
-__device__ void cuda_permutation(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
+__device__ void cuda_permutation_optimized(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
     size_t round = 0;
     
     // First half of full rounds
     for (size_t r = 0; r < PoseidonParams::ROUNDS_FULL / 2; ++r) {
         cuda_add_round_constants(state, round++);
-        cuda_apply_sbox(state);
+        cuda_apply_sbox_optimized(state);
         cuda_apply_mds_matrix(state);
     }
     
@@ -106,16 +111,16 @@ __device__ void cuda_permutation(CudaFieldElement state[PoseidonParams::STATE_SI
     // Second half of full rounds
     for (size_t r = 0; r < PoseidonParams::ROUNDS_FULL / 2; ++r) {
         cuda_add_round_constants(state, round++);
-        cuda_apply_sbox(state);
+        cuda_apply_sbox_optimized(state);
         cuda_apply_mds_matrix(state);
     }
 }
 
 // ================================
-// Device Hash Functions for Merkle Trees
+// Device Hash Functions for Merkle Trees - Optimized
 // ================================
 
-__device__ CudaFieldElement device_hash_n(const CudaFieldElement* children, size_t arity) {
+__device__ CudaFieldElement device_hash_n_optimized(const CudaFieldElement* children, size_t arity) {
     // Initialize with domain separator for sponge construction
     CudaFieldElement state[PoseidonParams::STATE_SIZE];
     state[0] = CudaFieldElement(3); // Same domain separator as CPU hash_multiple
@@ -134,7 +139,7 @@ __device__ CudaFieldElement device_hash_n(const CudaFieldElement* children, size
         }
         
         // Apply permutation
-        cuda_permutation(state);
+        cuda_permutation_optimized(state);
     }
     
     // Squeeze phase - return first rate element (state[CAPACITY] = state[1])
@@ -142,10 +147,10 @@ __device__ CudaFieldElement device_hash_n(const CudaFieldElement* children, size
 }
 
 // ================================
-// Kernel Functions
+// Kernel Functions - Optimized
 // ================================
 
-__global__ void batch_hash_single_kernel(const CudaFieldElement* inputs, CudaFieldElement* outputs, size_t count) {
+__global__ void batch_hash_single_kernel_optimized(const CudaFieldElement* inputs, CudaFieldElement* outputs, size_t count) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx < count) {
@@ -156,14 +161,14 @@ __global__ void batch_hash_single_kernel(const CudaFieldElement* inputs, CudaFie
         state[2] = CudaFieldElement(0); // Zero padding
         
         // Apply full Poseidon permutation
-        cuda_permutation(state);
+        cuda_permutation_optimized(state);
         
         // Store result (first rate element)
         outputs[idx] = state[1];
     }
 }
 
-__global__ void batch_hash_pairs_kernel(const CudaFieldElement* left_inputs, const CudaFieldElement* right_inputs, CudaFieldElement* outputs, size_t count) {
+__global__ void batch_hash_pairs_kernel_optimized(const CudaFieldElement* left_inputs, const CudaFieldElement* right_inputs, CudaFieldElement* outputs, size_t count) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx < count) {
@@ -174,14 +179,14 @@ __global__ void batch_hash_pairs_kernel(const CudaFieldElement* left_inputs, con
         state[2] = right_inputs[idx];       // Right input
         
         // Apply full Poseidon permutation
-        cuda_permutation(state);
+        cuda_permutation_optimized(state);
         
         // Store result (first rate element)
         outputs[idx] = state[1];
     }
 }
 
-__global__ void batch_permutation_kernel(CudaFieldElement* states, size_t count) {
+__global__ void batch_permutation_kernel_optimized(CudaFieldElement* states, size_t count) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx < count) {
@@ -196,7 +201,7 @@ __global__ void batch_permutation_kernel(CudaFieldElement* states, size_t count)
         }
         
         // Apply the Poseidon permutation
-        cuda_permutation(local_state);
+        cuda_permutation_optimized(local_state);
         
         // Write the result back - natural assignment
         for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
@@ -206,12 +211,11 @@ __global__ void batch_permutation_kernel(CudaFieldElement* states, size_t count)
 }
 
 // ================================
-// Host Interface Implementation
+// Host Interface Implementation - Optimized
 // ================================
 
-CudaPoseidonHash::CudaPoseidonHash() 
-    : initialized_(false), optimal_batch_size_(1024), max_batch_size_(65536),
-      d_round_constants_(nullptr), d_mds_matrix_(nullptr) {
+CudaPoseidonHashOptimized::CudaPoseidonHashOptimized() 
+    : initialized_(false), optimal_batch_size_(1024), max_batch_size_(65536) {
     
     // Initialize CUDA field arithmetic first
     if (!CudaFieldArithmetic::initialize()) {
@@ -238,47 +242,34 @@ CudaPoseidonHash::CudaPoseidonHash()
     initialized_ = true;
 }
 
-CudaPoseidonHash::~CudaPoseidonHash() {
-    if (d_round_constants_) {
-        cudaFree(d_round_constants_);
-        d_round_constants_ = nullptr;
-    }
-    
-    if (d_mds_matrix_) {
-        cudaFree(d_mds_matrix_);
-        d_mds_matrix_ = nullptr;
-    }
+CudaPoseidonHashOptimized::~CudaPoseidonHashOptimized() {
+    // __constant__ memory is automatically managed by CUDA runtime
+    // No need to free constant memory
     
     CudaFieldArithmetic::cleanup();
     initialized_ = false;
 }
 
-bool CudaPoseidonHash::copy_constants_to_device() {
-    // Allocate device memory for round constants
-    size_t round_constants_size = PoseidonParams::TOTAL_ROUNDS * PoseidonParams::STATE_SIZE * sizeof(FieldElement);
-    CUDA_CHECK_RETURN(cudaMalloc(&d_round_constants_, round_constants_size));
+bool CudaPoseidonHashOptimized::copy_constants_to_device() {
+    // Copy round constants directly to constant memory
+    // The constants are arrays of FieldElement, but we need to copy them as uint64_t arrays
+    size_t round_constants_size = PoseidonParams::TOTAL_ROUNDS * PoseidonParams::STATE_SIZE * 4 * sizeof(uint64_t);
+    CUDA_CHECK_RETURN(cudaMemcpyToSymbol(d_poseidon_round_constants_optimized, 
+                                        reinterpret_cast<const uint64_t*>(PoseidonConstants::ROUND_CONSTANTS.data()), 
+                                        round_constants_size));
     
-    // Copy round constants to device
-    CUDA_CHECK_RETURN(cudaMemcpy(d_round_constants_, PoseidonConstants::ROUND_CONSTANTS.data(), round_constants_size, cudaMemcpyHostToDevice));
-    
-    // Allocate device memory for MDS matrix
-    size_t mds_matrix_size = PoseidonParams::STATE_SIZE * PoseidonParams::STATE_SIZE * sizeof(FieldElement);
-    CUDA_CHECK_RETURN(cudaMalloc(&d_mds_matrix_, mds_matrix_size));
-    
-    // Copy MDS matrix to device
-    CUDA_CHECK_RETURN(cudaMemcpy(d_mds_matrix_, PoseidonConstants::MDS_MATRIX.data(), mds_matrix_size, cudaMemcpyHostToDevice));
-    
-    // Copy device pointers to device symbol memory (for inline functions)
-    CUDA_CHECK_RETURN(cudaMemcpyToSymbol(d_poseidon_round_constants_ptr, &d_round_constants_, sizeof(FieldElement*)));
-    
-    CUDA_CHECK_RETURN(cudaMemcpyToSymbol(d_poseidon_mds_matrix_ptr, &d_mds_matrix_, sizeof(FieldElement*)));
+    // Copy MDS matrix directly to constant memory
+    size_t mds_matrix_size = PoseidonParams::STATE_SIZE * PoseidonParams::STATE_SIZE * 4 * sizeof(uint64_t);
+    CUDA_CHECK_RETURN(cudaMemcpyToSymbol(d_poseidon_mds_matrix_optimized, 
+                                        reinterpret_cast<const uint64_t*>(PoseidonConstants::MDS_MATRIX.data()), 
+                                        mds_matrix_size));
     
     return true;
 }
 
-bool CudaPoseidonHash::batch_hash_single(const std::vector<FieldElement>& inputs, std::vector<FieldElement>& outputs) {
+bool CudaPoseidonHashOptimized::batch_hash_single(const std::vector<FieldElement>& inputs, std::vector<FieldElement>& outputs) {
     if (!initialized_) {
-        std::cerr << "CudaPoseidonHash not initialized" << std::endl;
+        std::cerr << "CudaPoseidonHashOptimized not initialized" << std::endl;
         return false;
     }
     
@@ -311,7 +302,7 @@ bool CudaPoseidonHash::batch_hash_single(const std::vector<FieldElement>& inputs
     size_t grid_size = (count + block_size - 1) / block_size;
     
     // Launch kernel
-    batch_hash_single_kernel<<<grid_size, block_size>>>(d_inputs, d_outputs, count);
+    batch_hash_single_kernel_optimized<<<grid_size, block_size>>>(d_inputs, d_outputs, count);
     
     CUDA_KERNEL_CHECK();
 
@@ -335,11 +326,11 @@ bool CudaPoseidonHash::batch_hash_single(const std::vector<FieldElement>& inputs
     return true;
 }
 
-bool CudaPoseidonHash::batch_hash_pairs(const std::vector<FieldElement>& left_inputs,
+bool CudaPoseidonHashOptimized::batch_hash_pairs(const std::vector<FieldElement>& left_inputs,
                                        const std::vector<FieldElement>& right_inputs,
                                        std::vector<FieldElement>& outputs) {
     if (!initialized_) {
-        std::cerr << "CudaPoseidonHash not initialized" << std::endl;
+        std::cerr << "CudaPoseidonHashOptimized not initialized" << std::endl;
         return false;
     }
     
@@ -385,7 +376,7 @@ bool CudaPoseidonHash::batch_hash_pairs(const std::vector<FieldElement>& left_in
     size_t grid_size = (count + block_size - 1) / block_size;
     
     // Launch kernel
-    batch_hash_pairs_kernel<<<grid_size, block_size>>>(d_left_inputs, d_right_inputs, d_outputs, count);
+    batch_hash_pairs_kernel_optimized<<<grid_size, block_size>>>(d_left_inputs, d_right_inputs, d_outputs, count);
     
     CUDA_KERNEL_CHECK();
     
@@ -410,9 +401,9 @@ bool CudaPoseidonHash::batch_hash_pairs(const std::vector<FieldElement>& left_in
     return true;
 }
 
-bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement, PoseidonParams::STATE_SIZE>>& states) {
+bool CudaPoseidonHashOptimized::batch_permutation(std::vector<std::array<CudaFieldElement, PoseidonParams::STATE_SIZE>>& states) {
     if (!initialized_) {
-        std::cerr << "CudaPoseidonHash not initialized" << std::endl;
+        std::cerr << "CudaPoseidonHashOptimized not initialized" << std::endl;
         return false;
     }
     
@@ -444,7 +435,7 @@ bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement
     size_t grid_size = (count + block_size - 1) / block_size;
     
     // Launch kernel
-    batch_permutation_kernel<<<grid_size, block_size>>>(d_states, count);
+    batch_permutation_kernel_optimized<<<grid_size, block_size>>>(d_states, count);
     
     CUDA_KERNEL_CHECK();
     
@@ -474,51 +465,46 @@ bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement
 // Utility Functions
 // ================================
 
-size_t CudaPoseidonHash::get_optimal_batch_size() const {
+size_t CudaPoseidonHashOptimized::get_optimal_batch_size() const {
     return optimal_batch_size_;
 }
 
-size_t CudaPoseidonHash::get_max_batch_size() const {
+size_t CudaPoseidonHashOptimized::get_max_batch_size() const {
     return max_batch_size_;
 }
 
-bool CudaPoseidonHash::is_initialized() const {
+bool CudaPoseidonHashOptimized::is_initialized() const {
     return initialized_;
 }
 
 
 
 // Memory management functions for FieldElement - kept for existing kernels that still use FieldElement
-FieldElement* CudaPoseidonHash::allocate_device_memory(size_t count) {
+FieldElement* CudaPoseidonHashOptimized::allocate_device_memory(size_t count) {
     FieldElement* ptr;
     CUDA_MALLOC_CHECK(ptr, count * sizeof(FieldElement));
     return ptr;
 }
 
-void CudaPoseidonHash::free_device_memory(FieldElement* ptr) {
+void CudaPoseidonHashOptimized::free_device_memory(FieldElement* ptr) {
     if (ptr) {
         cudaFree(ptr);
     }
 }
 
-bool CudaPoseidonHash::copy_to_device(const std::vector<FieldElement>& host_data, FieldElement* device_ptr) {
+bool CudaPoseidonHashOptimized::copy_to_device(const std::vector<FieldElement>& host_data, FieldElement* device_ptr) {
     CUDA_CHECK_RETURN(cudaMemcpy(device_ptr, host_data.data(), 
                                  host_data.size() * sizeof(FieldElement), 
                                  cudaMemcpyHostToDevice));
     return true;
 }
 
-bool CudaPoseidonHash::copy_from_device(FieldElement* device_ptr, std::vector<FieldElement>& host_data, size_t count) {
+bool CudaPoseidonHashOptimized::copy_from_device(FieldElement* device_ptr, std::vector<FieldElement>& host_data, size_t count) {
     CUDA_CHECK_RETURN(cudaMemcpy(host_data.data(), device_ptr, 
                                  count * sizeof(FieldElement), 
                                  cudaMemcpyDeviceToHost));
     return true;
 }
 
-
-
-
-
-
-} // namespace PoseidonCUDA
+} // namespace PoseidonCUDAOptimized
 } // namespace Poseidon 

@@ -70,7 +70,7 @@ add_custom_target(run_all_tests
 
 # Create target to run just CPU tests
 add_custom_target(run_cpu_tests
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "(poseidon_tests|merkle_tree_tests)"
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "PoseidonTest|FieldArithmeticTest|FieldAccumulationTest|MerkleTreeTest"
     DEPENDS ${ALL_CPU_TEST_TARGETS}
     COMMENT "Running all CPU tests"
 )
@@ -78,7 +78,7 @@ add_custom_target(run_cpu_tests
 # Create target to run just CUDA tests
 if(CUDA_AVAILABLE)
     add_custom_target(run_cuda_tests
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "(poseidon_cuda|merkle_tree_cuda)"
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -R "poseidon_cuda_tests|merkle_tree_cuda"
         DEPENDS poseidon_cuda_tests merkle_tree_cuda_tests merkle_tree_cuda_benchmark_tests
         COMMENT "Running all CUDA tests"
     )

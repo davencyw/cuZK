@@ -303,20 +303,112 @@ __device__ inline void cuda_reduce_512(const uint64_t product[8], CudaFieldEleme
         return;
     }
     
-    // For BN254 field, 2^256 ≡ 4 (mod p) approximately
-    // So we compute: high * 4 + low, then reduce
-    CudaFieldElement temp_high;
+    // 2^256 mod p = 0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb
+    // This is the exact value - must match CPU implementation
+    CudaFieldElement k;
+    k.limbs[0] = 0xac96341c4fffffffULL;  // k[0]
+    k.limbs[1] = 0x36fc76959f60cd29ULL;  // k[1] 
+    k.limbs[2] = 0x666ea36f7879462eULL;  // k[2]
+    k.limbs[3] = 0x0e0a77c19a07df2fULL;  // k[3]
     
-    // Multiply high by 4 (left shift by 2) - match CPU exactly
-    uint64_t carry = 0;
+    // Compute high * k using schoolbook multiplication
+    uint64_t mult_product[8] = {0};
     for (int i = 0; i < 4; ++i) {
-        uint64_t shifted = (high.limbs[i] << 2) | carry;
-        temp_high.limbs[i] = shifted;
-        carry = high.limbs[i] >> 62;  // Carry the top 2 bits
+        uint64_t carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            // 64x64 -> 128 multiplication using 32-bit parts
+            uint64_t a_val = high.limbs[i];
+            uint64_t b_val = k.limbs[j];
+            
+            uint64_t a_lo = a_val & 0xFFFFFFFFULL;
+            uint64_t a_hi = a_val >> 32;
+            uint64_t b_lo = b_val & 0xFFFFFFFFULL;
+            uint64_t b_hi = b_val >> 32;
+            
+            uint64_t p0 = a_lo * b_lo;
+            uint64_t p1 = a_lo * b_hi;
+            uint64_t p2 = a_hi * b_lo;
+            uint64_t p3 = a_hi * b_hi;
+            
+            // Assemble the 128-bit result
+            uint64_t middle = p1 + p2 + (p0 >> 32);
+            uint64_t prod_low = (middle << 32) | (p0 & 0xFFFFFFFFULL);
+            uint64_t prod_high = p3 + (middle >> 32);
+            
+            // Add to existing result with carry propagation
+            uint64_t sum1 = mult_product[i + j] + prod_low + carry;
+            uint64_t carry1 = (sum1 < mult_product[i + j]) ? 1 : 0;
+            if (carry && sum1 == mult_product[i + j]) carry1 = 1;
+            
+            mult_product[i + j] = sum1;
+            carry = prod_high + carry1;
+        }
+        if (i + 4 < 8) {
+            mult_product[i + 4] = carry;
+        }
     }
     
-    // Add temp_high + low
-    cuda_add(temp_high, low, result);
+    // Extract low part of high * k
+    CudaFieldElement high_contribution;
+    high_contribution.limbs[0] = mult_product[0];
+    high_contribution.limbs[1] = mult_product[1];
+    high_contribution.limbs[2] = mult_product[2];
+    high_contribution.limbs[3] = mult_product[3];
+    
+    // If there's a high part in mult_product, add it back (one iteration to avoid recursion)
+    CudaFieldElement mult_high;
+    mult_high.limbs[0] = mult_product[4];
+    mult_high.limbs[1] = mult_product[5];
+    mult_high.limbs[2] = mult_product[6];
+    mult_high.limbs[3] = mult_product[7];
+    
+    if (!cuda_is_zero(mult_high)) {
+        // Add mult_high * k to high_contribution (only low part)
+        uint64_t mult2_product[8] = {0};
+        for (int i = 0; i < 4; ++i) {
+            uint64_t carry = 0;
+            for (int j = 0; j < 4; ++j) {
+                uint64_t a_val = mult_high.limbs[i];
+                uint64_t b_val = k.limbs[j];
+                
+                uint64_t a_lo = a_val & 0xFFFFFFFFULL;
+                uint64_t a_hi = a_val >> 32;
+                uint64_t b_lo = b_val & 0xFFFFFFFFULL;
+                uint64_t b_hi = b_val >> 32;
+                
+                uint64_t p0 = a_lo * b_lo;
+                uint64_t p1 = a_lo * b_hi;
+                uint64_t p2 = a_hi * b_lo;
+                uint64_t p3 = a_hi * b_hi;
+                
+                uint64_t middle = p1 + p2 + (p0 >> 32);
+                uint64_t prod_low = (middle << 32) | (p0 & 0xFFFFFFFFULL);
+                uint64_t prod_high = p3 + (middle >> 32);
+                
+                uint64_t sum1 = mult2_product[i + j] + prod_low + carry;
+                uint64_t carry1 = (sum1 < mult2_product[i + j]) ? 1 : 0;
+                if (carry && sum1 == mult2_product[i + j]) carry1 = 1;
+                
+                mult2_product[i + j] = sum1;
+                carry = prod_high + carry1;
+            }
+            if (i + 4 < 8) {
+                mult2_product[i + 4] = carry;
+            }
+        }
+        
+        // Add only the low part of mult2_product to high_contribution
+        CudaFieldElement mult2_low;
+        mult2_low.limbs[0] = mult2_product[0];
+        mult2_low.limbs[1] = mult2_product[1];
+        mult2_low.limbs[2] = mult2_product[2];
+        mult2_low.limbs[3] = mult2_product[3];
+        
+        cuda_add(high_contribution, mult2_low, high_contribution);
+    }
+    
+    // Final result: low + high_contribution
+    cuda_add(low, high_contribution, result);
     
     // Final reduction
     cuda_reduce(result);
