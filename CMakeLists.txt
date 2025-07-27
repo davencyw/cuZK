@@ -38,7 +38,6 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/v1.14.0.zip
-    DOWNLOAD_EXTRACT_TIMESTAMP NEW
 )
 FetchContent_MakeAvailable(googletest)
 

@@ -126,6 +126,35 @@ if(CUDA_AVAILABLE)
     target_compile_definitions(poseidon_benchmark PRIVATE CUDA_ENABLED)
 endif()
 
+# Create CUDA profiler executable if CUDA is available
+if(CUDA_AVAILABLE)
+    add_executable(poseidon_cuda_profiler
+        cuda/poseidon_cuda_profiler.cpp
+    )
+    
+    target_link_libraries(poseidon_cuda_profiler
+        poseidon_cuda
+        poseidon
+        Threads::Threads
+    )
+    
+    # Add custom target for running CUDA profiling with Nsight Systems
+    add_custom_target(profile_poseidon_cuda
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../../profile_poseidon_nsys.sh --basic-only
+        DEPENDS poseidon_cuda_profiler
+        COMMENT "Running Poseidon CUDA kernel profiling with NVIDIA Nsight Systems"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    
+    # Add custom target for comprehensive profiling
+    add_custom_target(profile_poseidon_comprehensive
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../../profile_poseidon_nsys.sh -c
+        DEPENDS poseidon_cuda_profiler
+        COMMENT "Running comprehensive Poseidon CUDA kernel profiling"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()
+
 # Add custom target for running benchmarks
 add_custom_target(benchmark_poseidon
     COMMAND $<TARGET_FILE:poseidon_benchmark>

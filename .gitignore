@@ -64,3 +64,9 @@ logs/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Profiling
+profiling_results
+nsys_profiling_results
+ncu_profiling_results
+benchmark_results
