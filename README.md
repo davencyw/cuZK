@@ -149,10 +149,6 @@ Batch Size | CPU Proof Gen (ms) | GPU Proof Gen (ms) | CPU Verify (ms) | GPU Ver
 ====================================================================================================
 ```
 
-## Performance Benchmarks
-
-The implementation includes comprehensive benchmarking tools:
-
 
 ## References
 - [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458.pdf)

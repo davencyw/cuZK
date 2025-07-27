@@ -48,6 +48,10 @@ private:
     size_t optimal_batch_size_;
     size_t max_batch_size_;
     
+    // Device constants
+    FieldElement* d_round_constants_;
+    FieldElement* d_mds_matrix_;
+    
     // Device memory management
     FieldElement* allocate_device_memory(size_t count);
     void free_device_memory(FieldElement* ptr);
