@@ -20,9 +20,9 @@ if(CUDA_AVAILABLE)
     set(MERKLE_TREE_CUDA_SOURCES
         merkle_tree_cuda.cu
         # Include Poseidon CUDA sources directly to avoid device linking issues
-        ../poseidon/cuda_field_element.cu
-        ../poseidon/field_arithmetic_cuda.cu
-        ../poseidon/poseidon_cuda.cu
+        ../poseidon/cuda/cuda_field_element.cu
+        ../poseidon/cuda/field_arithmetic_cuda.cu
+        ../poseidon/cuda/poseidon_cuda.cu
     )
     
     add_library(merkle_tree_cuda ${MERKLE_TREE_CUDA_SOURCES})

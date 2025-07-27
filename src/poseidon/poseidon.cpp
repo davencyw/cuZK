@@ -87,27 +87,23 @@ void PoseidonHash::permutation(FieldElement state[PoseidonParams::STATE_SIZE]) {
 }
 
 FieldElement PoseidonHash::hash_single(const FieldElement &input) {
-  FieldElement state[PoseidonParams::STATE_SIZE] = {ONE, input, ZERO};
-  permutation(state);
-  return state[1]; // Return the first rate element
+  return sponge({input}, FieldElement(1));
 }
 
 FieldElement PoseidonHash::hash_pair(const FieldElement &left,
                                      const FieldElement &right) {
-  FieldElement state[PoseidonParams::STATE_SIZE] = {TWO, left, right};
-  permutation(state);
-  return state[1]; // Return the first rate element
+  return sponge({left, right}, FieldElement(2));
 }
 
 FieldElement
 PoseidonHash::hash_multiple(const std::vector<FieldElement> &inputs) {
-  return sponge(inputs);
+  return sponge(inputs, FieldElement(3));
 }
 
-FieldElement PoseidonHash::sponge(const std::vector<FieldElement> &inputs) {
-  // Initialize with a domain separator for sponge construction
+FieldElement PoseidonHash::sponge(const std::vector<FieldElement> &inputs, const FieldElement &domain_separator) {
+  // Initialize with the provided domain separator
   FieldElement state[PoseidonParams::STATE_SIZE] = {
-      FieldElement(3), // Different from single (1) and pair (2)
+      domain_separator,
       ZERO, ZERO};
 
   // Absorb phase

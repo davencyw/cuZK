@@ -70,116 +70,11 @@ make test-cuda
 
 # Run benchmark tests
 make benchmark
+
+# Run benchmarks
+./run_poseidon_benchmark.sh
+./run_merkle_benchmarks.sh
 ```
-
-## Usage Examples
-
-### GPU-Accelerated Poseidon Hashing
-
-```cpp
-#include "poseidon.hpp"
-#include "poseidon_cuda.cuh"
-using namespace Poseidon;
-using namespace Poseidon::PoseidonCUDA;
-
-int main() {
-    // Initialize CUDA Poseidon
-    if (!CudaPoseidonHash::initialize()) {
-        std::cerr << "Failed to initialize CUDA Poseidon" << std::endl;
-        return 1;
-    }
-    
-    // Prepare batch data
-    std::vector<FieldElement> inputs;
-    for (size_t i = 0; i < 10000; ++i) {
-        inputs.push_back(FieldElement(i));
-    }
-    
-    // Batch hash on GPU
-    std::vector<FieldElement> results;
-    bool success = CudaPoseidonHash::batch_hash_single(inputs, results);
-    
-    if (success) {
-        std::cout << "Hashed " << inputs.size() << " elements on GPU" << std::endl;
-        std::cout << "First result: " << results[0].to_hex() << std::endl;
-    }
-    
-    // Cleanup
-    CudaPoseidonHash::cleanup();
-    return 0;
-}
-```
-
-### GPU-Accelerated Merkle Tree Operations
-
-```cpp
-#include "merkle_tree.hpp"
-#include "merkle_tree_cuda.cuh"
-using namespace MerkleTree;
-using namespace MerkleTree::MerkleTreeCUDA;
-
-int main() {
-    // Initialize CUDA
-    if (!CudaNaryMerkleTree::initialize_cuda()) {
-        std::cerr << "Failed to initialize CUDA" << std::endl;
-        return 1;
-    }
-    
-    // Initialize Poseidon constants
-    Poseidon::PoseidonConstants::init();
-    
-    // Generate large dataset for GPU acceleration benefits
-    std::vector<FieldElement> leaves;
-    for (size_t i = 0; i < 10000; ++i) {
-        leaves.push_back(FieldElement(i + 1));
-    }
-    
-    // Create CUDA-accelerated tree
-    MerkleTreeConfig config(4); // Quaternary tree
-    CudaNaryMerkleTree cuda_tree(leaves, config);
-    
-    std::cout << "Built tree with " << cuda_tree.get_leaf_count() << " leaves" << std::endl;
-    std::cout << "Tree height: " << cuda_tree.get_tree_height() << std::endl;
-    std::cout << "Root hash: " << cuda_tree.get_root_hash().to_hex().substr(0, 16) << "..." << std::endl;
-    
-    // Generate batch proofs (GPU-accelerated for large batches)
-    std::vector<size_t> proof_indices;
-    for (size_t i = 0; i < 1000; i += 10) {
-        proof_indices.push_back(i);
-    }
-    
-    auto start = std::chrono::high_resolution_clock::now();
-    auto proofs = cuda_tree.generate_batch_proofs(proof_indices);
-    auto end = std::chrono::high_resolution_clock::now();
-    
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Generated " << proofs.size() << " proofs in " << duration.count() << "ms" << std::endl;
-    
-    // Verify batch proofs
-    std::vector<FieldElement> proof_values;
-    for (size_t idx : proof_indices) {
-        proof_values.push_back(leaves[idx]);
-    }
-    
-    start = std::chrono::high_resolution_clock::now();
-    bool batch_valid = cuda_tree.verify_batch_proofs(proofs, proof_values);
-    end = std::chrono::high_resolution_clock::now();
-    
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Verified " << proofs.size() << " proofs in " << duration.count() << "ms" << std::endl;
-    std::cout << "Batch verification result: " << (batch_valid ? "Valid" : "Invalid") << std::endl;
-    
-    // Compare with CPU implementation
-    NaryMerkleTree cpu_tree(leaves, config);
-    bool trees_match = cuda_tree.compare_with_cpu_tree(cpu_tree);
-    std::cout << "GPU tree matches CPU: " << (trees_match ? "Yes" : "No") << std::endl;
-    
-    // Cleanup
-    CudaNaryMerkleTree::cleanup_cuda();
-    return 0;
-}
-```
-
 
 
 ## Code Quality
@@ -258,18 +153,7 @@ Batch Size | CPU Proof Gen (ms) | GPU Proof Gen (ms) | CPU Verify (ms) | GPU Ver
 
 The implementation includes comprehensive benchmarking tools:
 
-```bash
-# Run CPU benchmarks
-make benchmark
-
-# Run CUDA benchmarks (if available)
-make test-cuda
-
-# Run specific benchmark script
-./run_merkle_benchmarks.sh
-```
 
 ## References
 - [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458.pdf)
 - [BN254 Curve Specification](https://hackmd.io/@jpw/bn254)
-- [NVIDIA CUDA Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)

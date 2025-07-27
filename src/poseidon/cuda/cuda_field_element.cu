@@ -1,5 +1,5 @@
 #include "cuda_field_element.cuh"
-#include "field_arithmetic.hpp"
+#include "../field_arithmetic.hpp"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <iostream>

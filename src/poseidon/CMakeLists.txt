@@ -13,9 +13,11 @@ target_include_directories(poseidon PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # Create optional CUDA extension library
 if(CUDA_AVAILABLE)
     set(POSEIDON_CUDA_SOURCES
-        cuda_field_element.cu
-        field_arithmetic_cuda.cu
-        poseidon_cuda.cu
+        cuda/cuda_field_element.cu
+        cuda/field_arithmetic_cuda.cu
+        cuda/poseidon_cuda.cu
+        cuda/poseidon_cuda_optimized.cu
+        cuda/poseidon_cuda_benchmarks.cpp
     )
     
     add_library(poseidon_cuda ${POSEIDON_CUDA_SOURCES})
@@ -88,7 +90,7 @@ endif()
 
 # Add custom target for running just CPU tests
 add_custom_target(test_poseidon_cpu
-    COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon_tests"
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/poseidon_tests
     DEPENDS poseidon_tests
     COMMENT "Running Poseidon CPU tests"
 )
@@ -96,17 +98,40 @@ add_custom_target(test_poseidon_cpu
 # Add custom target for running all poseidon tests
 if(CUDA_AVAILABLE)
     add_custom_target(test_poseidon_all
-        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon.*"
+        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "PoseidonTest|FieldArithmeticTest|FieldAccumulationTest|poseidon_cuda_tests"
         DEPENDS poseidon_tests poseidon_cuda_tests
         COMMENT "Running all Poseidon tests (CPU and CUDA)"
     )
 else()
     add_custom_target(test_poseidon_all
-        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "poseidon_tests"
+        COMMAND ${CMAKE_CTEST_COMMAND} --verbose -R "PoseidonTest|FieldArithmeticTest|FieldAccumulationTest"
         DEPENDS poseidon_tests
         COMMENT "Running all Poseidon tests (CPU only)"
     )
 endif()
+
+# Create benchmark executable
+add_executable(poseidon_benchmark
+    test/benchmark.cpp
+)
+
+target_link_libraries(poseidon_benchmark
+    poseidon
+    Threads::Threads
+)
+
+# Add CUDA support to benchmark if available
+if(CUDA_AVAILABLE)
+    target_link_libraries(poseidon_benchmark poseidon_cuda)
+    target_compile_definitions(poseidon_benchmark PRIVATE CUDA_ENABLED)
+endif()
+
+# Add custom target for running benchmarks
+add_custom_target(benchmark_poseidon
+    COMMAND $<TARGET_FILE:poseidon_benchmark>
+    DEPENDS poseidon_benchmark
+    COMMENT "Running Poseidon performance benchmarks"
+)
 
 # Maintain backward compatibility
 add_custom_target(test_poseidon 

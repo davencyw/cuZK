@@ -1,6 +1,6 @@
 #include "field_arithmetic_cuda.cuh"
 #include "cuda_field_element.cuh"
-#include "field_arithmetic.hpp"
+#include "../field_arithmetic.hpp"
 #include "../common/error_handling.hpp"
 #include <iostream>
 #include <chrono>
@@ -116,20 +116,107 @@ __device__ void reduce_512_array(const uint64_t product[8], uint64_t result[4]) 
         return;
     }
     
-    // For BN254 field, 2^256 ≡ 4 (mod p) approximately
-    // So we compute: high * 4 + low, then reduce
-    uint64_t temp_high[4];
+    // 2^256 mod p = 0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb
+    // This is the exact value - must match CPU implementation
+    uint64_t k[4] = {
+        0xac96341c4fffffffULL,  // k[0]
+        0x36fc76959f60cd29ULL,  // k[1] 
+        0x666ea36f7879462eULL,  // k[2]
+        0x0e0a77c19a07df2fULL   // k[3]
+    };
     
-    // Multiply high by 4 (left shift by 2)
-    uint64_t carry = 0;
+    // Compute high * k using schoolbook multiplication
+    uint64_t mult_product[8] = {0};
     for (int i = 0; i < 4; ++i) {
-        uint64_t shifted = (high[i] << 2) | carry;
-        temp_high[i] = shifted;
-        carry = high[i] >> 62;  // Carry the top 2 bits
+        uint64_t carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            // 64x64 -> 128 multiplication using 32-bit parts
+            uint64_t a_val = high[i];
+            uint64_t b_val = k[j];
+            
+            uint64_t a_lo = a_val & 0xFFFFFFFFULL;
+            uint64_t a_hi = a_val >> 32;
+            uint64_t b_lo = b_val & 0xFFFFFFFFULL;
+            uint64_t b_hi = b_val >> 32;
+            
+            uint64_t p0 = a_lo * b_lo;
+            uint64_t p1 = a_lo * b_hi;
+            uint64_t p2 = a_hi * b_lo;
+            uint64_t p3 = a_hi * b_hi;
+            
+            // Assemble the 128-bit result
+            uint64_t middle = p1 + p2 + (p0 >> 32);
+            uint64_t prod_low = (middle << 32) | (p0 & 0xFFFFFFFFULL);
+            uint64_t prod_high = p3 + (middle >> 32);
+            
+            // Add to existing result with carry propagation
+            uint64_t sum1 = mult_product[i + j] + prod_low + carry;
+            uint64_t carry1 = (sum1 < mult_product[i + j]) ? 1 : 0;
+            if (carry && sum1 == mult_product[i + j]) carry1 = 1;
+            
+            mult_product[i + j] = sum1;
+            carry = prod_high + carry1;
+        }
+        if (i + 4 < 8) {
+            mult_product[i + 4] = carry;
+        }
     }
     
-    // Add temp_high + low
-    add_arrays(temp_high, low, result);
+    // Extract low part of high * k
+    uint64_t high_contribution[4];
+    for (int i = 0; i < 4; ++i) {
+        high_contribution[i] = mult_product[i];
+    }
+    
+    // If there's a high part in mult_product, add it back (one iteration to avoid recursion)
+    uint64_t mult_high[4];
+    bool mult_high_nonzero = false;
+    for (int i = 0; i < 4; ++i) {
+        mult_high[i] = mult_product[i + 4];
+        if (mult_high[i] != 0) mult_high_nonzero = true;
+    }
+    
+    if (mult_high_nonzero) {
+        // Add mult_high * k to high_contribution (only low part)
+        uint64_t mult2_product[8] = {0};
+        for (int i = 0; i < 4; ++i) {
+            uint64_t carry = 0;
+            for (int j = 0; j < 4; ++j) {
+                uint64_t a_val = mult_high[i];
+                uint64_t b_val = k[j];
+                
+                uint64_t a_lo = a_val & 0xFFFFFFFFULL;
+                uint64_t a_hi = a_val >> 32;
+                uint64_t b_lo = b_val & 0xFFFFFFFFULL;
+                uint64_t b_hi = b_val >> 32;
+                
+                uint64_t p0 = a_lo * b_lo;
+                uint64_t p1 = a_lo * b_hi;
+                uint64_t p2 = a_hi * b_lo;
+                uint64_t p3 = a_hi * b_hi;
+                
+                uint64_t middle = p1 + p2 + (p0 >> 32);
+                uint64_t prod_low = (middle << 32) | (p0 & 0xFFFFFFFFULL);
+                uint64_t prod_high = p3 + (middle >> 32);
+                
+                uint64_t sum1 = mult2_product[i + j] + prod_low + carry;
+                uint64_t carry1 = (sum1 < mult2_product[i + j]) ? 1 : 0;
+                if (carry && sum1 == mult2_product[i + j]) carry1 = 1;
+                
+                mult2_product[i + j] = sum1;
+                carry = prod_high + carry1;
+            }
+            if (i + 4 < 8) {
+                mult2_product[i + 4] = carry;
+            }
+        }
+        
+        // Add only the low part of mult2_product to high_contribution
+        add_arrays(high_contribution, mult2_product, high_contribution);
+    }
+    
+    // Final result: low + high_contribution
+    add_arrays(low, high_contribution, result);
     
     // Final reduction
     reduce_array(result);
@@ -680,9 +767,6 @@ CudaHashingStats benchmark_cuda_field_operations(size_t num_operations, size_t b
         stats.avg_time_per_operation_ns = static_cast<double>(duration.count()) / completed_ops;
         stats.operations_per_second = static_cast<size_t>(1000000000.0 / stats.avg_time_per_operation_ns);
     }
-    
-    // Estimate memory usage (using CudaFieldElement size)
-    stats.gpu_memory_used_mb = (batch_size * 3 * sizeof(CudaFieldElement)) / (1024 * 1024);
     
     return stats;
 }

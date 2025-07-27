@@ -1,6 +1,8 @@
 #include "poseidon_cuda.cuh"
 #include "field_arithmetic_cuda.cuh"  // Still needed for class methods like initialize()
 #include "cuda_field_element.cuh"
+#include "poseidon_interface_cuda.hpp"
+#include "poseidon_cuda_benchmarks.hpp"
 #include "../common/error_handling.hpp"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -14,13 +16,6 @@ namespace PoseidonCUDA {
 
 // Use standardized CUDA error handling - these are macros, imported via include
 using cuZK::ErrorHandling::cuda_sync_check;
-
-// Static member initialization
-bool CudaPoseidonHash::initialized_ = false;
-size_t CudaPoseidonHash::optimal_batch_size_ = 1024;
-size_t CudaPoseidonHash::max_batch_size_ = 65536;
-FieldElement* CudaPoseidonHash::d_round_constants_ = nullptr;
-FieldElement* CudaPoseidonHash::d_mds_matrix_ = nullptr;
 
 // Device pointers for constants (initialized at runtime)
 __device__ FieldElement* d_poseidon_round_constants_ptr;
@@ -214,15 +209,14 @@ __global__ void batch_permutation_kernel(CudaFieldElement* states, size_t count)
 // Host Interface Implementation
 // ================================
 
-bool CudaPoseidonHash::initialize() {
-    if (initialized_) {
-        return true;
-    }
+CudaPoseidonHash::CudaPoseidonHash() 
+    : initialized_(false), optimal_batch_size_(1024), max_batch_size_(65536),
+      d_round_constants_(nullptr), d_mds_matrix_(nullptr) {
     
     // Initialize CUDA field arithmetic first
     if (!CudaFieldArithmetic::initialize()) {
         std::cerr << "Failed to initialize CUDA field arithmetic" << std::endl;
-        return false;
+        return;
     }
     
     // Initialize Poseidon constants on host
@@ -231,7 +225,7 @@ bool CudaPoseidonHash::initialize() {
     // Copy constants to device
     if (!copy_constants_to_device()) {
         std::cerr << "Failed to copy Poseidon constants to device" << std::endl;
-        return false;
+        return;
     }
     
     // Determine optimal batch sizes based on device properties
@@ -242,10 +236,9 @@ bool CudaPoseidonHash::initialize() {
     max_batch_size_ = std::min(static_cast<size_t>(prop.maxGridSize[0] * optimal_batch_size_), static_cast<size_t>(1 << 20)); // 1M max
     
     initialized_ = true;
-    return true;
 }
 
-void CudaPoseidonHash::cleanup() {
+CudaPoseidonHash::~CudaPoseidonHash() {
     if (d_round_constants_) {
         cudaFree(d_round_constants_);
         d_round_constants_ = nullptr;
@@ -417,31 +410,6 @@ bool CudaPoseidonHash::batch_hash_pairs(const std::vector<FieldElement>& left_in
     return true;
 }
 
-bool CudaPoseidonHash::gpu_hash_single(const FieldElement& input, FieldElement& output) {
-    std::vector<FieldElement> inputs = {input};
-    std::vector<FieldElement> outputs;
-    
-    bool success = batch_hash_single(inputs, outputs);
-    if (success && !outputs.empty()) {
-        output = outputs[0];
-    }
-    
-    return success;
-}
-
-bool CudaPoseidonHash::gpu_hash_pair(const FieldElement& left, const FieldElement& right, FieldElement& output) {
-    std::vector<FieldElement> left_inputs = {left};
-    std::vector<FieldElement> right_inputs = {right};
-    std::vector<FieldElement> outputs;
-    
-    bool success = batch_hash_pairs(left_inputs, right_inputs, outputs);
-    if (success && !outputs.empty()) {
-        output = outputs[0];
-    }
-    
-    return success;
-}
-
 bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement, PoseidonParams::STATE_SIZE>>& states) {
     if (!initialized_) {
         std::cerr << "CudaPoseidonHash not initialized" << std::endl;
@@ -506,31 +474,19 @@ bool CudaPoseidonHash::batch_permutation(std::vector<std::array<CudaFieldElement
 // Utility Functions
 // ================================
 
-size_t CudaPoseidonHash::get_optimal_batch_size() {
+size_t CudaPoseidonHash::get_optimal_batch_size() const {
     return optimal_batch_size_;
 }
 
-size_t CudaPoseidonHash::get_max_batch_size() {
+size_t CudaPoseidonHash::get_max_batch_size() const {
     return max_batch_size_;
 }
 
-void CudaPoseidonHash::print_performance_info() {
-    if (!initialized_) {
-        std::cout << "CudaPoseidonHash not initialized" << std::endl;
-        return;
-    }
-    
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    
-    std::cout << "CUDA Poseidon Performance Info:" << std::endl;
-    std::cout << "  Device: " << prop.name << std::endl;
-    std::cout << "  Optimal batch size: " << optimal_batch_size_ << std::endl;
-    std::cout << "  Maximum batch size: " << max_batch_size_ << std::endl;
-    std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
-    std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
-    std::cout << "  Global memory: " << prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
+bool CudaPoseidonHash::is_initialized() const {
+    return initialized_;
 }
+
+
 
 // Memory management functions for FieldElement - kept for existing kernels that still use FieldElement
 FieldElement* CudaPoseidonHash::allocate_device_memory(size_t count) {
@@ -561,120 +517,8 @@ bool CudaPoseidonHash::copy_from_device(FieldElement* device_ptr, std::vector<Fi
 
 
 
-// ================================
-// Benchmark Functions
-// ================================
 
-CudaPoseidonStats benchmark_cuda_poseidon_single(size_t num_hashes, size_t batch_size) {
-    CudaPoseidonStats stats = {};
-    
-    if (!CudaPoseidonHash::initialize()) {
-        std::cerr << "Failed to initialize CUDA Poseidon" << std::endl;
-        return stats;
-    }
-    
-    // Generate test data
-    std::vector<FieldElement> inputs;
-    inputs.reserve(num_hashes);
-    for (size_t i = 0; i < num_hashes; ++i) {
-        inputs.push_back(FieldElement::random());
-    }
-    
-    std::vector<FieldElement> outputs;
-    
-    auto start = std::chrono::high_resolution_clock::now();
-    
-    // Process in batches
-    for (size_t i = 0; i < num_hashes; i += batch_size) {
-        size_t current_batch_size = std::min(batch_size, num_hashes - i);
-        std::vector<FieldElement> batch_inputs(inputs.begin() + i, inputs.begin() + i + current_batch_size);
-        std::vector<FieldElement> batch_outputs;
-        
-        if (!CudaPoseidonHash::batch_hash_single(batch_inputs, batch_outputs)) {
-            std::cerr << "Failed to process batch at index " << i << std::endl;
-            return stats;
-        }
-        
-        outputs.insert(outputs.end(), batch_outputs.begin(), batch_outputs.end());
-    }
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    
-    stats.total_time_ms = duration.count() / 1000000.0;
-    stats.avg_time_per_hash_ns = static_cast<double>(duration.count()) / num_hashes;
-    stats.hashes_per_second = static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
-    stats.total_hashes = num_hashes;
-    
-    // Estimate GPU memory usage
-    stats.gpu_memory_used_mb = (batch_size * 2 * sizeof(FieldElement)) / (1024 * 1024); // inputs + outputs
-    
-    return stats;
-}
 
-CudaPoseidonStats benchmark_cuda_poseidon_pairs(size_t num_pairs, size_t batch_size) {
-    CudaPoseidonStats stats = {};
-    
-    if (!CudaPoseidonHash::initialize()) {
-        std::cerr << "Failed to initialize CUDA Poseidon" << std::endl;
-        return stats;
-    }
-    
-    // Generate test data
-    std::vector<FieldElement> left_inputs, right_inputs;
-    left_inputs.reserve(num_pairs);
-    right_inputs.reserve(num_pairs);
-    
-    for (size_t i = 0; i < num_pairs; ++i) {
-        left_inputs.push_back(FieldElement::random());
-        right_inputs.push_back(FieldElement::random());
-    }
-    
-    std::vector<FieldElement> outputs;
-    
-    auto start = std::chrono::high_resolution_clock::now();
-    
-    // Process in batches
-    for (size_t i = 0; i < num_pairs; i += batch_size) {
-        size_t current_batch_size = std::min(batch_size, num_pairs - i);
-        std::vector<FieldElement> batch_left(left_inputs.begin() + i, left_inputs.begin() + i + current_batch_size);
-        std::vector<FieldElement> batch_right(right_inputs.begin() + i, right_inputs.begin() + i + current_batch_size);
-        std::vector<FieldElement> batch_outputs;
-        
-        if (!CudaPoseidonHash::batch_hash_pairs(batch_left, batch_right, batch_outputs)) {
-            std::cerr << "Failed to process batch at index " << i << std::endl;
-            return stats;
-        }
-        
-        outputs.insert(outputs.end(), batch_outputs.begin(), batch_outputs.end());
-    }
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    
-    stats.total_time_ms = duration.count() / 1000000.0;
-    stats.avg_time_per_hash_ns = static_cast<double>(duration.count()) / num_pairs;
-    stats.hashes_per_second = static_cast<size_t>(1000000000.0 / stats.avg_time_per_hash_ns);
-    stats.total_hashes = num_pairs;
-    
-    // Estimate GPU memory usage
-    stats.gpu_memory_used_mb = (batch_size * 3 * sizeof(FieldElement)) / (1024 * 1024); // left + right + outputs
-    
-    return stats;
-}
-
-CudaPoseidonStats benchmark_cuda_vs_cpu_poseidon(size_t num_hashes, size_t batch_size) {
-    CudaPoseidonStats stats = benchmark_cuda_poseidon_single(num_hashes, batch_size);
-    
-    // Benchmark CPU version for comparison
-    auto cpu_stats = Poseidon::benchmark_poseidon(num_hashes);
-    
-    if (cpu_stats.avg_time_per_hash_ns > 0) {
-        stats.speedup_vs_cpu = cpu_stats.avg_time_per_hash_ns / stats.avg_time_per_hash_ns;
-    }
-    
-    return stats;
-}
 
 } // namespace PoseidonCUDA
 } // namespace Poseidon 

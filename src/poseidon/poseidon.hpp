@@ -52,7 +52,7 @@ public:
   static FieldElement hash_multiple(const std::vector<FieldElement> &inputs);
 
   // Sponge construction for variable-length input
-  static FieldElement sponge(const std::vector<FieldElement> &inputs);
+  static FieldElement sponge(const std::vector<FieldElement> &inputs, const FieldElement &domain_separator);
 
 private:
   // Internal permutation steps

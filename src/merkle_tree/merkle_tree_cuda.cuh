@@ -1,8 +1,8 @@
 #pragma once
 
 #include "merkle_tree.hpp"
-#include "../poseidon/poseidon_cuda.cuh"
-#include "../poseidon/cuda_field_element.cuh"
+#include "../poseidon/cuda/poseidon_cuda.cuh"
+#include "../poseidon/cuda/cuda_field_element.cuh"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <vector>
@@ -115,7 +115,6 @@ struct CudaMerkleTreeStats {
     size_t proofs_per_second;
     size_t total_trees;
     size_t total_proofs;
-    double gpu_utilization_percent;
     double speedup_vs_cpu;
     size_t leaf_count;
     size_t tree_height;
