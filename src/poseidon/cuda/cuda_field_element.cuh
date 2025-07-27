@@ -10,7 +10,7 @@ namespace Poseidon {
 
 // CUDA-compatible field element structure for 256-bit prime field arithmetic
 // This version can be used in both host and device code
-struct CudaFieldElement {
+struct __align__(32) CudaFieldElement {
     // 4 64-bit limbs to represent 256-bit numbers
     uint64_t limbs[4];
 
@@ -178,6 +178,7 @@ __device__ inline bool cuda_is_zero(const CudaFieldElement& a) {
 
 __device__ inline int cuda_compare(const CudaFieldElement& a, const CudaFieldElement& b) {
     // Compare from most significant to least significant limb
+    #pragma unroll
     for (int i = 3; i >= 0; --i) {
         if (a.limbs[i] < b.limbs[i]) return -1;
         if (a.limbs[i] > b.limbs[i]) return 1;
@@ -188,6 +189,7 @@ __device__ inline int cuda_compare(const CudaFieldElement& a, const CudaFieldEle
 __device__ inline void cuda_subtract_internal(const CudaFieldElement& a, const CudaFieldElement& b, CudaFieldElement& result) {
     uint64_t borrow = 0;
     
+    #pragma unroll
     for (int i = 0; i < 4; ++i) {
         uint64_t temp_a = a.limbs[i];
         uint64_t temp_b = b.limbs[i] + borrow;
@@ -206,6 +208,7 @@ __device__ inline void cuda_add(const CudaFieldElement& a, const CudaFieldElemen
     uint64_t carry = 0;
     
     // Match CPU implementation exactly: add all three values at once
+    #pragma unroll
     for (int i = 0; i < 4; ++i) {
         uint64_t sum = a.limbs[i] + b.limbs[i] + carry;
         result.limbs[i] = sum;
@@ -235,8 +238,10 @@ __device__ inline void cuda_multiply_raw(const uint64_t a[4], const uint64_t b[4
     }
     
     // Schoolbook multiplication - simpler and more reliable approach
+    #pragma unroll
     for (int i = 0; i < 4; ++i) {
         uint64_t carry = 0;
+        #pragma unroll
         for (int j = 0; j < 4; ++j) {
             // 64x64 -> 128 multiplication using built-in approach
             uint64_t a_val = a[i];
@@ -313,8 +318,10 @@ __device__ inline void cuda_reduce_512(const uint64_t product[8], CudaFieldEleme
     
     // Compute high * k using schoolbook multiplication
     uint64_t mult_product[8] = {0};
+    #pragma unroll
     for (int i = 0; i < 4; ++i) {
         uint64_t carry = 0;
+        #pragma unroll
         for (int j = 0; j < 4; ++j) {
             // 64x64 -> 128 multiplication using 32-bit parts
             uint64_t a_val = high.limbs[i];
@@ -365,8 +372,10 @@ __device__ inline void cuda_reduce_512(const uint64_t product[8], CudaFieldEleme
     if (!cuda_is_zero(mult_high)) {
         // Add mult_high * k to high_contribution (only low part)
         uint64_t mult2_product[8] = {0};
+        #pragma unroll
         for (int i = 0; i < 4; ++i) {
             uint64_t carry = 0;
+            #pragma unroll
             for (int j = 0; j < 4; ++j) {
                 uint64_t a_val = mult_high.limbs[i];
                 uint64_t b_val = k.limbs[j];

@@ -27,6 +27,7 @@ __constant__ uint64_t d_poseidon_mds_matrix_optimized[3 * 3 * 4]; // 3x3 matrix 
 // ================================
 
 __device__ void cuda_add_round_constants(CudaFieldElement state[PoseidonParams::STATE_SIZE], size_t round) {
+    #pragma unroll
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         size_t const_idx = round * PoseidonParams::STATE_SIZE + i;
         size_t limb_offset = const_idx * 4; // 4 limbs per FieldElement
@@ -41,6 +42,7 @@ __device__ void cuda_add_round_constants(CudaFieldElement state[PoseidonParams::
 }
 
 __device__ void cuda_apply_sbox_optimized(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
+    #pragma unroll
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         cuda_power5(state[i], state[i]);
     }
@@ -54,18 +56,21 @@ __device__ void cuda_apply_partial_sbox(CudaFieldElement state[PoseidonParams::S
 __device__ void cuda_apply_mds_matrix(CudaFieldElement state[PoseidonParams::STATE_SIZE]) {
     // Store original state in local memory (registers)
     CudaFieldElement original_state[PoseidonParams::STATE_SIZE];
+    #pragma unroll
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         original_state[i] = state[i];
     }
     
     // Compute MDS matrix multiplication directly into state array
     // new_state[i] = sum(MDS[i][j] * original_state[j])
+    #pragma unroll
     for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
         // Use local accumulator to avoid repeated memory access
         CudaFieldElement accumulator;
         accumulator.set_zero();
         
         // Accumulate: accumulator += MDS[i][j] * original_state[j]
+        #pragma unroll
         for (size_t j = 0; j < PoseidonParams::STATE_SIZE; ++j) {
             size_t matrix_idx = i * PoseidonParams::STATE_SIZE + j;
             size_t limb_offset = matrix_idx * 4; // 4 limbs per FieldElement
@@ -196,6 +201,7 @@ __global__ void batch_permutation_kernel_optimized(CudaFieldElement* states, siz
         
         // Extract the state for this thread - now using natural assignment
         CudaFieldElement local_state[PoseidonParams::STATE_SIZE];
+        #pragma unroll
         for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
             local_state[i] = states[state_offset + i];
         }
@@ -204,6 +210,7 @@ __global__ void batch_permutation_kernel_optimized(CudaFieldElement* states, siz
         cuda_permutation_optimized(local_state);
         
         // Write the result back - natural assignment
+        #pragma unroll
         for (size_t i = 0; i < PoseidonParams::STATE_SIZE; ++i) {
             states[state_offset + i] = local_state[i];
         }
